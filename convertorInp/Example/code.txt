@@ -1,0 +1,1 @@
+gmsh -2 -format inp cone.geo
