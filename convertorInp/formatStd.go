@@ -22,18 +22,18 @@ import "fmt"
 // 4310 762 1604 763;
 //------------------------------------------
 type stdCoordinate struct {
-	index uint
+	index uint64
 	coord [3]float64
 }
 
 type stdBeam struct {
-	index  uint
-	iPoint [2]uint
+	index  uint64
+	iPoint [2]uint64
 }
 
 type stdShell struct {
-	index  uint
-	iPoint []uint
+	index  uint64
+	iPoint []uint64
 }
 
 type stdFormat struct {
@@ -42,7 +42,7 @@ type stdFormat struct {
 	shells  []stdShell
 }
 
-func (std stdFormat) getLines(lines []string) {
+func (std stdFormat) getLines() (lines []string) {
 	// STD preambula
 	lines = append(lines, "STAAD SPACE")
 	lines = append(lines, "START JOB INFORMATION")
@@ -71,5 +71,5 @@ func (std stdFormat) getLines(lines []string) {
 		lines = append(lines, s)
 	}
 
-	return
+	return lines
 }

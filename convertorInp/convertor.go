@@ -9,10 +9,7 @@ func Convert(inpFilename, stdFilename string) (err error) {
 
 	std := convertInpToStd(inp)
 
-	strings, err := std.getLines()
-	if err != nil {
-		return err
-	}
+	strings := std.getLines()
 
 	err = createNewFile(strings)
 	return err
