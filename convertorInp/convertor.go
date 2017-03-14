@@ -11,6 +11,6 @@ func Convert(inpFilename, stdFilename string) (err error) {
 
 	strings := std.getLines()
 
-	err = createNewFile(strings)
+	err = createNewFile(stdFilename, strings)
 	return err
 }

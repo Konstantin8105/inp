@@ -138,6 +138,12 @@ func getStage(line string) inpStageReading {
 // 1, 0, 0, 0
 func convertStringToNode(line string) (c inpCoordinate, err error) {
 	s := strings.Split(line, ",")
+	if len(s) != 4 {
+		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
+	}
+	for i := range s {
+		s[i] = strings.TrimSpace(s[i])
+	}
 	c.index, err = strconv.ParseUint(s[0], 10, 64)
 	if err != nil {
 		return c, err
@@ -156,6 +162,12 @@ func convertStringToNode(line string) (c inpCoordinate, err error) {
 func convertStringToT3D2(line string) (c inpElement, err error) {
 	c.elType = inpTypeT3D2
 	s := strings.Split(line, ",")
+	if len(s) != 3 {
+		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
+	}
+	for i := range s {
+		s[i] = strings.TrimSpace(s[i])
+	}
 	c.index, err = strconv.ParseUint(s[0], 10, 64)
 	if err != nil {
 		return
@@ -175,6 +187,12 @@ func convertStringToT3D2(line string) (c inpElement, err error) {
 func convertStringToCPS3(line string) (c inpElement, err error) {
 	c.elType = inpTypeCPS3
 	s := strings.Split(line, ",")
+	if len(s) != 4 {
+		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
+	}
+	for i := range s {
+		s[i] = strings.TrimSpace(s[i])
+	}
 	c.index, err = strconv.ParseUint(s[0], 10, 32)
 	if err != nil {
 		return c, err

@@ -53,7 +53,7 @@ func (std stdFormat) getLines() (lines []string) {
 
 	lines = append(lines, "JOINT COORDINATES")
 	for _, p := range std.points {
-		lines = append(lines, fmt.Sprintf("%v %e %e %e;", p.index, p.coord[0], p.coord[1], p.coord[2]))
+		lines = append(lines, fmt.Sprintf("%v %.10e %.10e %.10e;", p.index, p.coord[0], p.coord[1], p.coord[2]))
 	}
 
 	lines = append(lines, "MEMBER INCIDENCES")
@@ -70,6 +70,8 @@ func (std stdFormat) getLines() (lines []string) {
 		s = fmt.Sprintf("%s ;", s)
 		lines = append(lines, s)
 	}
+
+	lines = append(lines, "FINISH")
 
 	return lines
 }
