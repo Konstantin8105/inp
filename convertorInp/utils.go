@@ -5,7 +5,9 @@ import (
 	"os"
 )
 
-func createNewFile(filename string, lines []string) (err error) {
+// CreateNewFile - send slice of strings to file.
+// Cannot overwrite the file
+func CreateNewFile(filename string, lines []string) (err error) {
 	if len(filename) == 0 {
 		return fmt.Errorf("Filename is zero: %v", filename)
 	}
