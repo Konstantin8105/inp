@@ -24,20 +24,20 @@ import "fmt"
 
 // Coordinate - coordinate
 type Coordinate struct {
-	Index uint64
+	Index int
 	Coord [3]float64
 }
 
 // Beam - staad beam
 type Beam struct {
-	Index  uint64
-	IPoint [2]uint64
+	Index  int
+	IPoint [2]int
 }
 
 // Shell - staad triangle or quadroelement
 type Shell struct {
-	Index  uint64
-	IPoint []uint64
+	Index  int
+	IPoint []int
 }
 
 // Format - summary format of staad data

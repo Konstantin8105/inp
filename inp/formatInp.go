@@ -23,7 +23,7 @@ import (
 
 // Coordinate - coordinate in inp format
 type Coordinate struct {
-	Index uint64
+	Index int
 	Coord [3]float64
 }
 
@@ -39,8 +39,8 @@ const (
 // Element - inp element
 type Element struct {
 	ElType ElementType
-	Index  uint64
-	IPoint []uint64
+	Index  int
+	IPoint []int
 }
 
 // Format - summary inp format
@@ -151,10 +151,11 @@ func convertStringToNode(line string) (c Coordinate, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.Index, err = strconv.ParseUint(s[0], 10, 64)
+	i, err := strconv.ParseInt(s[0], 10, 64)
 	if err != nil {
 		return c, err
 	}
+	c.Index = int(i)
 	for i := 0; i < 3; i++ {
 		c.Coord[i], err = strconv.ParseFloat(s[1+i], 64)
 		if err != nil {
@@ -175,16 +176,17 @@ func convertStringToT3D2(line string) (c Element, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.Index, err = strconv.ParseUint(s[0], 10, 64)
+	i, err := strconv.ParseInt(s[0], 10, 64)
 	if err != nil {
 		return
 	}
+	c.Index = int(i)
 	for i := 0; i < 2; i++ {
-		point, err := strconv.ParseUint(s[1+i], 10, 64)
+		point, err := strconv.ParseInt(s[1+i], 10, 64)
 		if err != nil {
 			return c, err
 		}
-		c.IPoint = append(c.IPoint, point)
+		c.IPoint = append(c.IPoint, int(point))
 	}
 	return c, err
 }
@@ -200,16 +202,17 @@ func convertStringToCPS3(line string) (c Element, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.Index, err = strconv.ParseUint(s[0], 10, 32)
+	i, err := strconv.ParseInt(s[0], 10, 32)
+	c.Index = int(i)
 	if err != nil {
 		return c, err
 	}
 	for i := 0; i < 3; i++ {
-		point, err := strconv.ParseUint(s[1+i], 10, 64)
+		point, err := strconv.ParseInt(s[1+i], 10, 64)
 		if err != nil {
 			return c, err
 		}
-		c.IPoint = append(c.IPoint, point)
+		c.IPoint = append(c.IPoint, int(point))
 	}
 	return c, err
 }
