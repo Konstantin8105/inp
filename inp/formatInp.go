@@ -1,4 +1,4 @@
-package convertorInp
+package inp
 
 import (
 	"bufio"
@@ -20,41 +20,48 @@ import (
 // *ELEMENT, type=CPS3, ELSET=Surface17
 // 1906, 39, 234, 247
 //------------------------------------------
-type inpCoordinate struct {
-	index uint64
-	coord [3]float64
+
+// Coordinate - coordinate in inp format
+type Coordinate struct {
+	Index uint64
+	Coord [3]float64
 }
 
-type inpElementType uint
+// ElementType - type inp of beam, triangle...
+type ElementType uint
 
+// Types of inp elements
 const (
-	inpTypeT3D2 inpElementType = iota
-	inpTypeCPS3
+	TypeT3D2 ElementType = iota // beam
+	TypeCPS3                    // triangle
 )
 
-type inpElement struct {
-	elType inpElementType
-	index  uint64
-	iPoint []uint64
+// Element - inp element
+type Element struct {
+	ElType ElementType
+	Index  uint64
+	IPoint []uint64
 }
 
-type inpFormat struct {
-	nodes    []inpCoordinate
-	elements []inpElement
+// Format - summary inp format
+type Format struct {
+	Nodes    []Coordinate
+	Elements []Element
 }
 
 // INP stage of file format
-type inpStageReading uint
+type stageReading uint
 
 const (
-	stageBug inpStageReading = iota
+	stageBug stageReading = iota
 	stageHeading
 	stageNode
 	stageElementT3D2
 	stageElementCPS3
 )
 
-func readInp(file string) (inp inpFormat, err error) {
+// ReadInp - read file in inp format
+func (inp Format) ReadInp(file string) (err error) {
 	inFile, err := os.Open(file)
 	if err != nil {
 		return
@@ -76,7 +83,7 @@ func readInp(file string) (inp inpFormat, err error) {
 	// stage == 1 - Node
 	// stage == 2 - Element T3D2
 	// stage == 3 - Element CPS3
-	var stage inpStageReading
+	var stage stageReading
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -94,30 +101,30 @@ func readInp(file string) (inp inpFormat, err error) {
 		case stageNode:
 			node, err := convertStringToNode(line)
 			if err != nil {
-				return inp, err
+				return err
 			}
-			inp.nodes = append(inp.nodes, node)
+			inp.Nodes = append(inp.Nodes, node)
 		case stageElementT3D2:
 			el, err := convertStringToT3D2(line)
 			if err != nil {
-				return inp, err
+				return err
 			}
-			inp.elements = append(inp.elements, el)
+			inp.Elements = append(inp.Elements, el)
 		case stageElementCPS3:
 			el, err := convertStringToCPS3(line)
 			if err != nil {
-				return inp, err
+				return err
 			}
-			inp.elements = append(inp.elements, el)
+			inp.Elements = append(inp.Elements, el)
 		case stageBug:
-			return inp, fmt.Errorf("stageBug. Cannot convert line = %v", line)
+			return fmt.Errorf("stageBug. Cannot convert line = %v", line)
 		}
 	}
 
 	return
 }
 
-func getStage(line string) inpStageReading {
+func getStage(line string) stageReading {
 	switch {
 	case strings.HasPrefix(line, "*Heading"):
 		return stageHeading
@@ -136,7 +143,7 @@ func getStage(line string) inpStageReading {
 
 // *NODE
 // 1, 0, 0, 0
-func convertStringToNode(line string) (c inpCoordinate, err error) {
+func convertStringToNode(line string) (c Coordinate, err error) {
 	s := strings.Split(line, ",")
 	if len(s) != 4 {
 		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
@@ -144,12 +151,12 @@ func convertStringToNode(line string) (c inpCoordinate, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.index, err = strconv.ParseUint(s[0], 10, 64)
+	c.Index, err = strconv.ParseUint(s[0], 10, 64)
 	if err != nil {
 		return c, err
 	}
 	for i := 0; i < 3; i++ {
-		c.coord[i], err = strconv.ParseFloat(s[1+i], 64)
+		c.Coord[i], err = strconv.ParseFloat(s[1+i], 64)
 		if err != nil {
 			return c, err
 		}
@@ -159,8 +166,8 @@ func convertStringToNode(line string) (c inpCoordinate, err error) {
 
 // *ELEMENT, type=T3D2, ELSET=Line1
 // 7, 1, 7
-func convertStringToT3D2(line string) (c inpElement, err error) {
-	c.elType = inpTypeT3D2
+func convertStringToT3D2(line string) (c Element, err error) {
+	c.ElType = TypeT3D2
 	s := strings.Split(line, ",")
 	if len(s) != 3 {
 		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
@@ -168,7 +175,7 @@ func convertStringToT3D2(line string) (c inpElement, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.index, err = strconv.ParseUint(s[0], 10, 64)
+	c.Index, err = strconv.ParseUint(s[0], 10, 64)
 	if err != nil {
 		return
 	}
@@ -177,15 +184,15 @@ func convertStringToT3D2(line string) (c inpElement, err error) {
 		if err != nil {
 			return c, err
 		}
-		c.iPoint = append(c.iPoint, point)
+		c.IPoint = append(c.IPoint, point)
 	}
 	return c, err
 }
 
 // *ELEMENT, type=CPS3, ELSET=Surface17
 // 1906, 39, 234, 247
-func convertStringToCPS3(line string) (c inpElement, err error) {
-	c.elType = inpTypeCPS3
+func convertStringToCPS3(line string) (c Element, err error) {
+	c.ElType = TypeCPS3
 	s := strings.Split(line, ",")
 	if len(s) != 4 {
 		return c, fmt.Errorf("Wrong string line for convert coordinate of point.\nLine = %v.\nSlice=%v", line, s)
@@ -193,7 +200,7 @@ func convertStringToCPS3(line string) (c inpElement, err error) {
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	c.index, err = strconv.ParseUint(s[0], 10, 32)
+	c.Index, err = strconv.ParseUint(s[0], 10, 32)
 	if err != nil {
 		return c, err
 	}
@@ -202,7 +209,7 @@ func convertStringToCPS3(line string) (c inpElement, err error) {
 		if err != nil {
 			return c, err
 		}
-		c.iPoint = append(c.iPoint, point)
+		c.IPoint = append(c.IPoint, point)
 	}
 	return c, err
 }

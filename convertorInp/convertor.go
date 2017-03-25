@@ -1,15 +1,18 @@
 package convertorInp
 
+import "github.com/Konstantin8105/Convert-INP-to-STD-format/inp"
+
 // Convert - convert test of inp file format to std format
 func Convert(inpFilename, stdFilename string) (err error) {
-	inp, err := readInp(inpFilename)
+	var f inp.Format
+	err = f.ReadInp(inpFilename)
 	if err != nil {
 		return err
 	}
 
-	std := convertInpToStd(inp)
+	std := convertInpToStd(f)
 
-	strings := std.getLines()
+	strings := std.GetLines()
 
 	err = CreateNewFile(stdFilename, strings)
 	return err
