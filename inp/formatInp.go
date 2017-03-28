@@ -125,8 +125,9 @@ func (inp Format) ReadInp(file string) (err error) {
 }
 
 func getStage(line string) stageReading {
+	line = strings.ToUpper(line)
 	switch {
-	case strings.HasPrefix(line, "*Heading"):
+	case strings.HasPrefix(line, "*HEADING"):
 		return stageHeading
 	case strings.HasPrefix(line, "*NODE"):
 		return stageNode

@@ -15,7 +15,15 @@ import (
 func main() {
 	// menu
 	line()
-	fmt.Println("| Programm created by Konstantin.I |")
+	fmt.Println("|==================================|")
+	fmt.Println("| Software:                        |")
+	fmt.Println("| Convert file from format INP to  |")
+	fmt.Println("| format STD.                      |")
+	fmt.Println("|                                  |")
+	fmt.Println("| Created by : Konstantin.I        |")
+	fmt.Println("| License : MIT. Absolute free to  |")
+	fmt.Println("| use, copy, modify.               |")
+	fmt.Println("|==================================|")
 	line()
 
 	files, err := getFilesInp()
