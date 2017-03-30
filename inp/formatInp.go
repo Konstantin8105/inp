@@ -1,5 +1,7 @@
 package inp
 
+import "fmt"
+
 //------------------------------------------
 // INP file format
 // *Heading
@@ -27,6 +29,16 @@ const (
 	TypeT3D2 ElementType = iota // beam
 	TypeCPS3                    // triangle
 )
+
+func (t ElementType) String() string {
+	switch t {
+	case TypeT3D2:
+		return fmt.Sprintf("T3D2")
+	case TypeCPS3:
+		return fmt.Sprintf("CPS3")
+	}
+	return fmt.Sprintf("Error into convert ElementType to String")
+}
 
 // ElementData - inp elements
 type ElementData struct {

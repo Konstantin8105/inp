@@ -1,6 +1,7 @@
 package inp
 
-func (f Format) AddUniqueIndexToElements() {
+// AddUniqueIndexToElements - add unique index for element with Index == -1
+func (f *Format) AddUniqueIndexToElements() {
 	var maxIndexElement int
 	for _, element := range f.Elements {
 		for _, data := range element.Data {
@@ -13,11 +14,11 @@ func (f Format) AddUniqueIndexToElements() {
 		maxIndexElement = 1
 	}
 	// add unique index only if "Index == -1"
-	for _, element := range f.Elements {
-		for _, data := range element.Data {
+	for iE, element := range f.Elements {
+		for iD, data := range element.Data {
 			if data.Index == -1 {
 				maxIndexElement++
-				data.Index = maxIndexElement
+				f.Elements[iE].Data[iD].Index = maxIndexElement
 			}
 		}
 	}

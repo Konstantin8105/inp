@@ -29,6 +29,9 @@ func (a pp) Less(i, j int) bool { return a[i].Index < a[j].Index }
 
 // Save - convertor
 func (f Format) Save(filename string) (err error) {
+	if len(f.Name) == 0 {
+		f.Name = filename
+	}
 	err = utils.CreateNewFile(filename, f.saveINPtoLines())
 	return err
 
@@ -39,9 +42,8 @@ func (f Format) saveINPtoLines() (lines []string) {
 	f.Name = strings.TrimSpace(f.Name)
 	if len(f.Name) == 0 {
 		f.Name = "Convertor"
-	} else {
-		lines = append(lines, f.Name)
 	}
+	lines = append(lines, f.Name)
 
 	// sort points by index
 	sort.Sort(pp(f.Nodes))
@@ -63,6 +65,7 @@ func (f Format) saveINPtoLines() (lines []string) {
 			for _, point := range data.IPoint {
 				s += fmt.Sprintf(",%v", point)
 			}
+			lines = append(lines, s)
 		}
 	}
 	return lines
