@@ -1,5 +1,7 @@
 package inp
 
+import "math"
+
 // AddUniqueIndexToElements - add unique index for element with Index == -1
 func (f *Format) AddUniqueIndexToElements() {
 	var maxIndexElement int
@@ -22,4 +24,18 @@ func (f *Format) AddUniqueIndexToElements() {
 			}
 		}
 	}
+}
+
+// AddNamedNodesOnLevel - add named nodes on specific elevation with name
+func (f *Format) AddNamedNodesOnLevel(level float64, name string) {
+	eps := 1e-8
+	var n NamedNode
+	n.Name = name
+	for _, node := range f.Nodes {
+		z := node.Coord[2]
+		if math.Abs(z-level) <= eps {
+			n.Nodes = append(n.Nodes, node.Index)
+		}
+	}
+	f.NodesWithName = append(f.NodesWithName, n)
 }

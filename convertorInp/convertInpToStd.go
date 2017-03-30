@@ -10,7 +10,6 @@ func convertInpToStd(f inp.Format) (std staad.Format) {
 		coord := staad.Coordinate{Index: node.Index, Coord: node.Coord}
 		std.Points = append(std.Points, coord)
 	}
-
 	for _, element := range f.Elements {
 		switch element.ElType {
 		case inp.TypeT3D2:

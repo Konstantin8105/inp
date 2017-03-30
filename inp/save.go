@@ -68,5 +68,13 @@ func (f Format) saveINPtoLines() (lines []string) {
 			lines = append(lines, s)
 		}
 	}
+
+	lines = append(lines, "**** Named nodes ****")
+	for _, n := range f.NodesWithName {
+		lines = append(lines, fmt.Sprintf("*NSET,NSET=%v", n.Name))
+		for _, i := range n.Nodes {
+			lines = append(lines, string(i)+",")
+		}
+	}
 	return lines
 }

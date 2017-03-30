@@ -15,7 +15,7 @@ import (
 //type handler func(f *Format, scan *bufio.Scanner, line string) (ok bool, err error)
 
 // Open - open file in inp format
-func (inp Format) Open(file string) (err error) {
+func (inp *Format) Open(file string) (err error) {
 	inFile, err := os.Open(file)
 	if err != nil {
 		return
@@ -40,10 +40,12 @@ func (inp Format) Open(file string) (err error) {
 		stageNode
 		stageElementT3D2
 		stageElementCPS3
+		stageNamedNode
 	)
 
 	var stage stageReading
 	var element Element
+	var namedNode NamedNode
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -68,8 +70,8 @@ func (inp Format) Open(file string) (err error) {
 			case strings.Contains(s, "NODE"):
 				stage = stageNode
 			case strings.Contains(s, "ELEMENT"):
-				saveElement(element, &inp)
-				element, err := convertElement(line)
+				saveElement(element, inp)
+				element, err = convertElement(line)
 				if err != nil {
 					return err
 				}
@@ -79,6 +81,16 @@ func (inp Format) Open(file string) (err error) {
 				case TypeCPS3:
 					stage = stageElementCPS3
 				}
+			case strings.Contains(s, "NSET"):
+				saveNamedNode(namedNode, inp)
+				namedNode, err = convertNamedNode(line)
+				if err != nil {
+					return err
+				}
+				if len(namedNode.Name) == 0 {
+					return fmt.Errorf("NSET without name - %v", line)
+				}
+				stage = stageNamedNode
 			default:
 				return fmt.Errorf("Cannot found type for that line : %v", line)
 			}
@@ -107,11 +119,25 @@ func (inp Format) Open(file string) (err error) {
 				return err
 			}
 			element.Data = append(element.Data, el)
+		case stageNamedNode:
+			index, err := convertStringToNameIndex(line)
+			if err != nil {
+				return err
+			}
+			namedNode.Nodes = append(namedNode.Nodes, index)
 		}
 	}
-	saveElement(element, &inp)
+	saveElement(element, inp)
+	saveNamedNode(namedNode, inp)
 
 	return nil
+}
+
+func saveNamedNode(namedNode NamedNode, inp *Format) {
+	if len(namedNode.Nodes) == 0 {
+		return
+	}
+	inp.NodesWithName = append(inp.NodesWithName, namedNode)
 }
 
 func saveElement(element Element, inp *Format) {
@@ -121,14 +147,32 @@ func saveElement(element Element, inp *Format) {
 	inp.Elements = append(inp.Elements, element)
 }
 
-// convert element
-func convertElement(line string) (el Element, err error) {
+// convert named nodes
+// *NSET, NSET = name
+func convertNamedNode(line string) (namedNode NamedNode, err error) {
 	s := strings.Split(line, ",")
 	for i := range s {
 		s[i] = strings.TrimSpace(s[i])
 	}
-	if strings.ToUpper(s[0]) != "ELEMENT" {
-		return el, fmt.Errorf("Wrong line in element: %v", line)
+	{
+		r := strings.Split(s[1], "=")
+		for i := range r {
+			r[i] = strings.TrimSpace(r[i])
+		}
+		if len(r) != 2 {
+			return namedNode, fmt.Errorf("Wrong in second NSET - %v", line)
+		}
+		namedNode.Name = strings.TrimSpace(r[1])
+	}
+	return namedNode, nil
+}
+
+// convert element
+// *ELEMENT, type=CPS3, ELSET=shell
+func convertElement(line string) (el Element, err error) {
+	s := strings.Split(line, ",")
+	for i := range s {
+		s[i] = strings.TrimSpace(s[i])
 	}
 	{
 		r := strings.Split(s[1], "=")
@@ -167,6 +211,18 @@ func separate(line string) (s []string) {
 		s[i] = strings.TrimSpace(s[i])
 	}
 	return s
+}
+
+// convert index of node in string to int
+// 1,
+// 5921,
+func convertStringToNameIndex(line string) (index int, err error) {
+	s := separate(line)
+	i, err := strconv.ParseInt(s[0], 10, 64)
+	if err != nil {
+		return
+	}
+	return int(i), nil
 }
 
 // *NODE

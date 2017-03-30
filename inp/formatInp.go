@@ -53,9 +53,16 @@ type Element struct {
 	Data   []ElementData
 }
 
+// NamedNode - list of nodes with specific name
+type NamedNode struct {
+	Name  string
+	Nodes []int
+}
+
 // Format - summary inp format
 type Format struct {
-	Name     string
-	Nodes    []Node
-	Elements []Element
+	Name          string
+	Nodes         []Node
+	Elements      []Element
+	NodesWithName []NamedNode
 }
