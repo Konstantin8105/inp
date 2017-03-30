@@ -32,10 +32,12 @@ func (f *Format) AddNamedNodesOnLevel(level float64, name string) {
 	var n NamedNode
 	n.Name = name
 	for _, node := range f.Nodes {
-		z := node.Coord[2]
-		if math.Abs(z-level) <= eps {
+		y := node.Coord[1]
+		if math.Abs(y-level) <= eps {
 			n.Nodes = append(n.Nodes, node.Index)
 		}
 	}
-	f.NodesWithName = append(f.NodesWithName, n)
+	if len(n.Nodes) > 0 {
+		f.NodesWithName = append(f.NodesWithName, n)
+	}
 }
