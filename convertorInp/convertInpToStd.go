@@ -15,17 +15,22 @@ func convertInpToStd(f inp.Format) (std staad.Format) {
 		switch element.ElType {
 		case inp.TypeT3D2:
 			// member
-			var b staad.Beam
-			b.Index = element.Index
-			for i := 0; i < 2; i++ {
-				b.IPoint[i] = element.IPoint[i]
+			for _, data := range element.Data {
+				var b staad.Beam
+				b.Index = data.Index
+				for i := 0; i < 2; i++ {
+					b.IPoint[i] = data.IPoint[i]
+				}
+				std.Members = append(std.Members, b)
 			}
-			std.Members = append(std.Members, b)
 		case inp.TypeCPS3:
-			var s staad.Shell
-			s.Index = element.Index
-			s.IPoint = element.IPoint
-			std.Shells = append(std.Shells, s)
+			// triangle
+			for _, data := range element.Data {
+				var s staad.Shell
+				s.Index = data.Index
+				s.IPoint = data.IPoint
+				std.Shells = append(std.Shells, s)
+			}
 		}
 	}
 	return

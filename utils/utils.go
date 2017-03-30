@@ -1,4 +1,4 @@
-package convertorInp
+package utils
 
 import (
 	"fmt"

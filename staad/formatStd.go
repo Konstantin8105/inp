@@ -62,19 +62,23 @@ func (std Format) GetLines() (lines []string) {
 		lines = append(lines, fmt.Sprintf("%v %.10e %.10e %.10e;", p.Index, p.Coord[0], p.Coord[1], p.Coord[2]))
 	}
 
-	lines = append(lines, "MEMBER INCIDENCES")
-	for _, p := range std.Members {
-		lines = append(lines, fmt.Sprintf("%v %v %v;", p.Index, p.IPoint[0], p.IPoint[1]))
+	if len(std.Members) != 0 {
+		lines = append(lines, "MEMBER INCIDENCES")
+		for _, p := range std.Members {
+			lines = append(lines, fmt.Sprintf("%v %v %v;", p.Index, p.IPoint[0], p.IPoint[1]))
+		}
 	}
 
-	lines = append(lines, "ELEMENT INCIDENCES SHELL")
-	for _, p := range std.Shells {
-		s := fmt.Sprintf("%v ", p.Index)
-		for _, e := range p.IPoint {
-			s = fmt.Sprintf("%s %v", s, e)
+	if len(std.Shells) != 0 {
+		lines = append(lines, "ELEMENT INCIDENCES SHELL")
+		for _, p := range std.Shells {
+			s := fmt.Sprintf("%v ", p.Index)
+			for _, e := range p.IPoint {
+				s = fmt.Sprintf("%s %v", s, e)
+			}
+			s = fmt.Sprintf("%s ;", s)
+			lines = append(lines, s)
 		}
-		s = fmt.Sprintf("%s ;", s)
-		lines = append(lines, s)
 	}
 
 	lines = append(lines, "FINISH")
