@@ -1,7 +1,5 @@
 package inp
 
-import "fmt"
-
 //------------------------------------------
 // INP file format
 // *Heading
@@ -21,25 +19,6 @@ type Node struct {
 	Coord [3]float64
 }
 
-// ElementType - type inp of beam, triangle...
-type ElementType uint
-
-// Types of inp elements
-const (
-	TypeT3D2 ElementType = iota // beam
-	TypeCPS3                    // triangle
-)
-
-func (t ElementType) String() string {
-	switch t {
-	case TypeT3D2:
-		return fmt.Sprintf("T3D2")
-	case TypeCPS3:
-		return fmt.Sprintf("CPS3")
-	}
-	return fmt.Sprintf("Error into convert ElementType to String")
-}
-
 // ElementData - inp elements
 type ElementData struct {
 	Index  int
@@ -48,9 +27,9 @@ type ElementData struct {
 
 // Element - inp element
 type Element struct {
-	ElType ElementType
-	Name   string
-	Data   []ElementData
+	Name string
+	FE   *FiniteElement
+	Data []ElementData
 }
 
 // NamedNode - list of nodes with specific name

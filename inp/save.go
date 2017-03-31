@@ -59,7 +59,7 @@ func (f Format) saveINPtoLines() (lines []string) {
 		if len(element.Name) == 0 {
 			element.Name = "Convertor"
 		}
-		lines = append(lines, fmt.Sprintf("*ELEMENT, type=%v, ELSET=%v", element.ElType, element.Name))
+		lines = append(lines, fmt.Sprintf("*ELEMENT, type=%v, ELSET=%v", element.FE.Name, element.Name))
 		for _, data := range element.Data {
 			s := fmt.Sprintf("%v", data.Index)
 			for _, point := range data.IPoint {
