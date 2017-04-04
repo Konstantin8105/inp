@@ -76,6 +76,7 @@ func init() {
 	}
 }
 
+// GetFiniteElementByName - get finite element by name
 func GetFiniteElementByName(name string) (fe *FiniteElement, err error) {
 	for i := range FiniteElementDatabase {
 		if name == FiniteElementDatabase[i].Name {

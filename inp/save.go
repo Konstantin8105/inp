@@ -76,5 +76,38 @@ func (f Format) saveINPtoLines() (lines []string) {
 			lines = append(lines, fmt.Sprintf("%v,", i))
 		}
 	}
+
+	lines = append(lines, "**** Property of material ****")
+	lines = append(lines, materialProperty)
+
+	lines = append(lines, "**** Shell property ****")
+	for _, s := range f.ShellSections {
+		lines = append(lines, fmt.Sprintf("*SHELL SECTION, MATERIAL=steel,ELSET=%v,OFFSET=0", s.ElementName))
+		lines = append(lines, fmt.Sprintf("%.10e", s.Thickness))
+	}
+
+	lines = append(lines, "**** Boundary property ****")
+	for _, b := range f.Boundary {
+		lines = append(lines, "*BOUNDARY")
+		lines = append(lines, fmt.Sprintf("%v,%v,%v,%v", b.NodesByName, b.StartFreedom, b.FinishFreedom, b.Value))
+	}
+
+	lines = append(lines, "**** STEP PROPERTY ****")
+	if f.Step.AmountBucklingShapes > 0 || len(f.Step.Loads) > 0 {
+		lines = append(lines, "*STEP")
+		if f.Step.AmountBucklingShapes > 0 {
+			lines = append(lines, "*BUCKLE")
+			lines = append(lines, fmt.Sprintf("%v", f.Step.AmountBucklingShapes))
+		}
+		if len(f.Step.Loads) > 0 {
+			for _, l := range f.Step.Loads {
+				lines = append(lines, "*CLOAD")
+				lines = append(lines, fmt.Sprintf("%v,%v,%.10e", l.NodesByName, l.Direction, l.LoadValue))
+			}
+		}
+		lines = append(lines, stepProperty)
+		lines = append(lines, "*END STEP")
+	}
+
 	return lines
 }
