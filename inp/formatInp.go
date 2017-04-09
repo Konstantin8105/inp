@@ -123,9 +123,9 @@ var stepProperty string
 
 func init() {
 	materialProperty = `
-*MATERIAL, NAME=stell
+*MATERIAL,NAME=steel
 *ELASTIC
-2.9E+07,0.28
+2e11,0.3
 
 *DENSITY
 7.35E-4
@@ -135,13 +135,13 @@ func init() {
 	stepProperty = `
 *NODE FILE
 U
-*NODE PRINT
-U,NT,RF
-*NODE FILE
-U,NT,RF
-*EL FILE
-U,S
-*EL PRINT
-S
+***NODE PRINT
+**U,NT,RF
+***NODE FILE
+**U,NT,RF
+***EL FILE
+**U,S
+***EL PRINT
+**S
 `
 }
