@@ -32,12 +32,13 @@ func (f Format) Save(filename string) (err error) {
 	if len(f.Name) == 0 {
 		f.Name = filename
 	}
-	err = utils.CreateNewFile(filename, f.saveINPtoLines())
+	err = utils.CreateNewFile(filename, f.SaveINPtoLines())
 	return err
 
 }
 
-func (f Format) saveINPtoLines() (lines []string) {
+// SaveINPtoLines - converting
+func (f Format) SaveINPtoLines() (lines []string) {
 	lines = append(lines, "*HEADING")
 	f.Name = strings.TrimSpace(f.Name)
 	if len(f.Name) == 0 {
