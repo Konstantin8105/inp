@@ -89,7 +89,7 @@ func (f Format) SaveINPtoLines() (lines []string) {
 
 	lines = append(lines, "**** Shell property ****")
 	for _, s := range f.ShellSections {
-		lines = append(lines, fmt.Sprintf("*SHELL SECTION,MATERIAL=steel,ELSET=%v,,OFFSET=0", s.ElementName))
+		lines = append(lines, fmt.Sprintf("*SHELL SECTION,MATERIAL=steel,ELSET=%v", s.ElementName)) //Remove: ,,OFFSET=0
 		lines = append(lines, fmt.Sprintf("%.10e", s.Thickness))
 	}
 
