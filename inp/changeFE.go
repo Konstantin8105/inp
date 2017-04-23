@@ -31,6 +31,41 @@ func (l byIndexA) Less(i, j int) bool {
 // ChangeTypeFiniteElement - change type finite element for example
 // from S4 to S8
 func (f *Format) ChangeTypeFiniteElement(from *FiniteElement, to *FiniteElement) (err error) {
+	if from == to {
+		return nil
+	}
+
+	if from.Shape == to.Shape && from.AmountNodes == to.AmountNodes {
+		// modify finite element with middle point
+		for elemenentI := range f.Elements {
+			if f.Elements[elemenentI].FE.Name != from.Name {
+				continue
+			}
+			f.Elements[elemenentI].FE = to
+		}
+		return nil
+	}
+
+	if from.Shape != to.Shape {
+		if from.AmountNodes == 4 && to.AmountNodes == 3 {
+			s3, _ := GetFiniteElementByName("S3")
+			f.changeFEfromQuadraticToTriangle(from, s3)
+			return nil
+		}
+		if from.AmountNodes == 4 && to.AmountNodes == 6 {
+			s3, _ := GetFiniteElementByName("S3")
+			err = f.ChangeTypeFiniteElement(from, s3)
+			if err != nil {
+				return err
+			}
+			err = f.ChangeTypeFiniteElement(s3, to)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
 	if from.Shape == to.Shape && from.AmountNodes*2 == to.AmountNodes {
 
 		// divide middle point inside exist
@@ -240,4 +275,52 @@ func (f *Format) foundByIndex(index int) (node [3]float64, err error) {
 	// index is not present in nodes,
 	// but i is the index where it would be inserted.
 	return node, fmt.Errorf("Cannot found in sort.Search : %v, but i = %v", index, i)
+}
+
+func (f *Format) changeFEfromQuadraticToTriangle(from *FiniteElement, to *FiniteElement) {
+	var maximalIndex int
+	for _, element := range f.Elements {
+		for _, data := range element.Data {
+			if maximalIndex < data.Index {
+				maximalIndex = data.Index
+			}
+		}
+	}
+	maximalIndex++
+
+	// add new elements
+	for elemenentI := range f.Elements {
+		if f.Elements[elemenentI].FE.Name != from.Name {
+			continue
+		}
+		var newElement Element
+		newElement.Name = f.Elements[elemenentI].Name
+		newElement.FE = to
+		for iData := range f.Elements[elemenentI].Data {
+			newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
+				f.Elements[elemenentI].Data[iData].IPoint[0],
+				f.Elements[elemenentI].Data[iData].IPoint[1],
+				f.Elements[elemenentI].Data[iData].IPoint[2],
+			}})
+			maximalIndex++
+			newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
+				f.Elements[elemenentI].Data[iData].IPoint[2],
+				f.Elements[elemenentI].Data[iData].IPoint[3],
+				f.Elements[elemenentI].Data[iData].IPoint[0],
+			}})
+			maximalIndex++
+		}
+		f.Elements = append(f.Elements, newElement)
+	}
+	// remove old FE
+AGAIN:
+	for elemenentI := range f.Elements {
+		if f.Elements[elemenentI].FE.Name != from.Name {
+			continue
+		}
+		f.Elements = append(f.Elements[:elemenentI], f.Elements[(elemenentI+1):]...)
+		goto AGAIN
+	}
+
+	return
 }
