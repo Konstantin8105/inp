@@ -30,22 +30,84 @@ func (l byIndexA) Less(i, j int) bool {
 
 // ChangeTypeFiniteElement - change type finite element for example
 // from S4 to S8
-func (f *Format) ChangeTypeFiniteElement(from FiniteElement, to FiniteElement) (out Format, err error) {
-	if from.Name != "S4" && to.Name != "S8" {
-		return out, fmt.Errorf("Cannot change that finite element : from %v  to %v", from, to)
-	}
-	// divide middle point inside exist
-	group, err := f.createMiddlePoint(from)
-	if err != nil {
-		return out, fmt.Errorf("Wrong in createMiddlePoint: %v", err)
+func (f *Format) ChangeTypeFiniteElement(from *FiniteElement, to *FiniteElement) (err error) {
+	if from.Shape == to.Shape && from.AmountNodes*2 == to.AmountNodes {
+
+		// divide middle point inside exist
+		group, err := f.createMiddlePoint(from)
+		if err != nil {
+			return fmt.Errorf("Wrong in createMiddlePoint: %v", err)
+		}
+
+		// add points in format
+		for _, node := range group {
+			f.Nodes = append(f.Nodes, node.nodeC)
+		}
+
+		// modify finite element with middle point
+		for elemenentI := range f.Elements {
+			if f.Elements[elemenentI].FE.Name != from.Name {
+				continue
+			}
+			f.Elements[elemenentI].FE = to
+			for iData := range f.Elements[elemenentI].Data {
+				iPoints := f.Elements[elemenentI].Data[iData].IPoint
+				// modification
+				var newPoints []int
+				for index := range iPoints {
+					var pointIndex1 int
+					if index == 0 {
+						pointIndex1 = iPoints[len(iPoints)-1]
+					} else {
+						pointIndex1 = iPoints[index-1]
+					}
+					pointIndex2 := iPoints[index]
+					var newPoint int
+					if pointIndex1 > pointIndex2 {
+						newPoint, err = f.foundPointCIndexInLineGroup(pointIndex2, pointIndex1, &group)
+					} else {
+						newPoint, err = f.foundPointCIndexInLineGroup(pointIndex1, pointIndex2, &group)
+					}
+					if err != nil {
+						return fmt.Errorf("Cannot found point in lineGroup : %v", err)
+					}
+					newPoints = append(newPoints, newPoint)
+				}
+				// end of modification
+				for i := range newPoints {
+					if i == len(newPoints)-1 {
+						f.Elements[elemenentI].Data[iData].IPoint = append(f.Elements[elemenentI].Data[iData].IPoint, newPoints[0])
+					} else {
+						f.Elements[elemenentI].Data[iData].IPoint = append(f.Elements[elemenentI].Data[iData].IPoint, newPoints[i+1])
+					}
+				}
+			}
+		}
+
+		// NodeNames changes
+		if len(f.NodesWithName) != 0 {
+			return fmt.Errorf("Cannot work with Named nodes")
+		}
+
+		return nil
 	}
 
-	// add points in format
-
-	// modify finite element with middle point
+	return fmt.Errorf("Cannot change FE from %v to %v", from, to)
 }
 
-func (f *Format) createMiddlePoint(fe FiniteElement) (group []lineGroup, err error) {
+func (f *Format) foundPointCIndexInLineGroup(p1, p2 int, group *[]lineGroup) (middlePoint int, err error) {
+	if p1 > p2 {
+		return -1, fmt.Errorf("Case p1 < p2 is not correct")
+	}
+	for _, g := range *group {
+		if g.indexA == p1 && g.indexB == p2 {
+			return g.nodeC.Index, nil
+		}
+	}
+	return -1, fmt.Errorf("Cannot found in group with point %v,%v\nGroup = %v", p1, p2, *group)
+}
+
+func (f *Format) createMiddlePoint(fe *FiniteElement) (group []lineGroup, err error) {
 	// check slice of nodes inp format - index must by from less to more
 	// if it is true, then we can use binary sort for fast found the point
 	for index := range f.Nodes {
@@ -59,52 +121,81 @@ func (f *Format) createMiddlePoint(fe FiniteElement) (group []lineGroup, err err
 
 	// create slice of linegroup
 	for _, element := range f.Elements {
-		if element.FE.Name == fe.Name {
-			for index := range element.Data {
+		if element.FE.Name != fe.Name {
+			continue
+		}
+
+		for _, data := range element.Data {
+			for index := range data.IPoint {
+				var pointIndex1 int
 				if index == 0 {
-					continue
-				}
-				pointIndex1 := element.Data[index-1].Index
-				var pointIndex2 int
-				if index != len(element.Data)-1 {
-					pointIndex2 = element.Data[index].Index
+					pointIndex1 = data.IPoint[len(data.IPoint)-1]
 				} else {
-					pointIndex2 = element.Data[0].Index
+					pointIndex1 = data.IPoint[index-1]
 				}
+				pointIndex2 := data.IPoint[index]
+				var g lineGroup
 				if pointIndex1 > pointIndex2 {
-					group = append(group, lineGroup{indexA: pointIndex2, indexB: pointIndex1})
+					g = lineGroup{indexA: pointIndex2, indexB: pointIndex1}
 				} else {
-					group = append(group, lineGroup{indexA: pointIndex1, indexB: pointIndex2})
+					g = lineGroup{indexA: pointIndex1, indexB: pointIndex2}
 				}
+				group = append(group, g)
 			}
 		}
 	}
+
 	// sorting linegroup
 	sort.Sort(byIndexA(group))
+	for {
+		var isChange bool
+		for i := range group {
+			if i == 0 {
+				continue
+			}
+			if group[i-1].indexA != group[i].indexA {
+				continue
+			}
+			if group[i-1].indexB > group[i].indexB {
+				// swap
+				group[i-1].indexB, group[i].indexB = group[i].indexB, group[i-1].indexB
+				isChange = true
+			}
+		}
+		if !isChange {
+			break
+		}
+	}
 
 	// create unique slice : true - if unique
 	unique := make([]bool, len(group), len(group))
 	for index := range group {
 		if index == 0 {
 			unique[0] = true
+			continue
 		}
-		unique[index] = group[index-1].indexA == group[index].indexA && group[index-1].indexB == group[index].indexB
+		unique[index] = !(group[index-1].indexA == group[index].indexA && group[index-1].indexB == group[index].indexB)
 	}
 
-	fmt.Println("unique len = ", len(unique))
 	amount := 0
 	for _, u := range unique {
 		if u {
 			amount++
 		}
 	}
-	fmt.Println("amount unique = ", amount)
+
+	// create unique linegroup
+	var buffer []lineGroup
+	for i, u := range unique {
+		if u {
+			buffer = append(buffer, group[i])
+		}
+	}
+	group = buffer
 
 	// 2-step for calculate middle point
 	for index := range group {
-		if !unique[index] {
-			continue
-		}
+
 		// step 1: loop - add to nodeC coordinate of NodeA
 		group[index].nodeC.Coord, err = f.foundByIndex(group[index].indexA)
 		if err != nil {
@@ -133,22 +224,11 @@ func (f *Format) createMiddlePoint(fe FiniteElement) (group []lineGroup, err err
 
 	// add index to indexC
 	for index := range group {
-		if !unique[index] {
-			continue
-		}
 		group[index].nodeC.Index = maximalIndex
 		maximalIndex++
 	}
 
-	// create unique linegroup
-	var buffer []lineGroup
-	for i, u := range unique {
-		if u {
-			buffer = append(buffer, group[i])
-		}
-	}
-
-	return buffer, nil
+	return group, nil
 }
 
 func (f *Format) foundByIndex(index int) (node [3]float64, err error) {

@@ -40,9 +40,6 @@ func (f Format) Save(filename string) (err error) {
 // SaveINPtoLines - converting
 func (f Format) SaveINPtoLines() (lines []string) {
 
-	// TODO fast append strings
-	//http: //stackoverflow.com/questions/1760757/how-to-efficiently-concatenate-strings-in-go
-	// TODO check  benchmark next line
 	lines = make([]string, 0, len(f.Elements)+len(f.Nodes)+10)
 
 	lines = append(lines, "*HEADING")

@@ -27,7 +27,7 @@ func (f *Format) AddUniqueIndexToElements() {
 }
 
 // AddNamedNodesOnLevel - add named nodes on specific elevation with name
-func (f *Format) AddNamedNodesOnLevel(level float64, name string) {
+func (f *Format) AddNamedNodesOnLevel(level float64, name string) int {
 	eps := 1e-8
 	var n NamedNode
 	n.Name = name
@@ -39,5 +39,7 @@ func (f *Format) AddNamedNodesOnLevel(level float64, name string) {
 	}
 	if len(n.Nodes) > 0 {
 		f.NodesWithName = append(f.NodesWithName, n)
+		return len(n.Nodes)
 	}
+	return -1
 }
