@@ -2,7 +2,6 @@ package inp
 
 import (
 	"fmt"
-	"math/rand"
 	"sort"
 )
 
@@ -299,23 +298,23 @@ func (f *Format) changeFEfromQuadraticToTriangle(from *FiniteElement, to *Finite
 		newElement.FE = to
 		for iData := range f.Elements[elemenentI].Data {
 			// add random dividing for avoid anisotrop finite element model
-			if rand.Float64() > 0.5 {
+			//if rand.Float64() > 0.5 {
+			newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
+				f.Elements[elemenentI].Data[iData].IPoint[0],
+				f.Elements[elemenentI].Data[iData].IPoint[1],
+				f.Elements[elemenentI].Data[iData].IPoint[2],
+			}})
+			maximalIndex++
+			newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
+				f.Elements[elemenentI].Data[iData].IPoint[2],
+				f.Elements[elemenentI].Data[iData].IPoint[3],
+				f.Elements[elemenentI].Data[iData].IPoint[0],
+			}})
+			maximalIndex++
+			/*} else {
 				newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
-					f.Elements[elemenentI].Data[iData].IPoint[0],
 					f.Elements[elemenentI].Data[iData].IPoint[1],
 					f.Elements[elemenentI].Data[iData].IPoint[2],
-				}})
-				maximalIndex++
-				newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
-					f.Elements[elemenentI].Data[iData].IPoint[2],
-					f.Elements[elemenentI].Data[iData].IPoint[3],
-					f.Elements[elemenentI].Data[iData].IPoint[0],
-				}})
-				maximalIndex++
-			} else {
-				newElement.Data = append(newElement.Data, ElementData{Index: maximalIndex, IPoint: []int{
-					f.Elements[elemenentI].Data[iData].IPoint[1],
-					f.Elements[elemenentI].Data[iData].IPoint[2],
 					f.Elements[elemenentI].Data[iData].IPoint[3],
 				}})
 				maximalIndex++
@@ -325,7 +324,7 @@ func (f *Format) changeFEfromQuadraticToTriangle(from *FiniteElement, to *Finite
 					f.Elements[elemenentI].Data[iData].IPoint[1],
 				}})
 				maximalIndex++
-			}
+			}*/
 		}
 		f.Elements = append(f.Elements, newElement)
 	}
