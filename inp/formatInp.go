@@ -125,7 +125,7 @@ func init() {
 	materialProperty = `
 *MATERIAL,NAME=steel
 *ELASTIC
-2e11,0.3
+2.1e11,0.3
 
 *DENSITY
 7.35E-4
