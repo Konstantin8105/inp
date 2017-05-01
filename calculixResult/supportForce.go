@@ -90,6 +90,7 @@ func parseForce(line string) (force Force, err error) {
 		break
 	}
 
+	foundPositions := 0
 	for position := 0; position < 3; position++ {
 		for index++; index < len(s); index++ {
 			if len(s[index]) == 0 {
@@ -100,8 +101,12 @@ func parseForce(line string) (force Force, err error) {
 				return force, fmt.Errorf("Error: string parts - %v, error - %v, in line - %v", s, err, line)
 			}
 			force.Load[position] = factor
+			foundPositions++
 			break
 		}
+	}
+	if foundPositions != 3 {
+		return force, fmt.Errorf("Cannot found enought values. line = %v\ns = %v\nforce = %v", line, s, force)
 	}
 
 	return force, nil
