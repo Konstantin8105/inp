@@ -1,4 +1,4 @@
-# Convert INP to STD format
+# inp fileformat parser
 
 That library created for convert finite element file in format INP to format STD.
 

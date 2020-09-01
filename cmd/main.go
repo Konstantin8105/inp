@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Konstantin8105/Convert-INP-to-STD-format/convertorInp"
+	"github.com/Konstantin8105/inp/convertorInp"
 )
 
 // Convert all INP files to STD files
