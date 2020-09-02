@@ -11,6 +11,7 @@ import (
 func Example() {
 	for _, file := range []string{
 		"./convertorInp/Example/shell.inp",
+		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
 	} {
 		fmt.Fprintf(os.Stdout, "\nfilename: %s\n", file)

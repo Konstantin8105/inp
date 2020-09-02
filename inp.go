@@ -16,11 +16,15 @@ import (
 
 // Format - summary inp format
 type Format struct {
-	Heading  string
-	Nodes    []Node
-	Elements []Element
-	Nsets    []Set
-	Elsets   []Set
+	Heading   string
+	Nodes     []Node
+	Elements  []Element
+	Nsets     []Set
+	Elsets    []Set
+	Density   float64
+	Expansion float64
+// 	Elastic struct{
+		
 	// 	NodesWithName []NamedNode
 	// 	ShellSections []ShellSection
 	// 	Boundary      []BoundaryProperty
@@ -178,7 +182,7 @@ type Set struct {
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*" + prefix) {
+	if !strings.HasPrefix(block[0], "*"+prefix) {
 		return false, nil
 	}
 	var name string
@@ -186,7 +190,7 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 		block[0] = strings.Replace(block[0], ",", " ", -1)
 		fields := strings.Fields(block[0])
 		for _, f := range fields {
-			if strings.HasPrefix(f, prefix + "=") {
+			if strings.HasPrefix(f, prefix+"=") {
 				name = f[len(prefix)+1:]
 			}
 		}
@@ -206,10 +210,32 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 		}
 	}
 	(*s) = append((*s), Set{
-		Name : name,
-		Indexes : ints,
+		Name:    name,
+		Indexes: ints,
 	})
 
+	return true, nil
+}
+
+func (f *Format) parseDensity(block []string) (ok bool, err error) {
+	if !strings.HasPrefix(block[0], "*DENSITY") {
+		return false, nil
+	}
+	f.Density, err = strconv.ParseFloat(block[1], 64)
+	if err != nil {
+		return
+	}
+	return true, nil
+}
+
+func (f *Format) parseExpansion(block []string) (ok bool, err error) {
+	if !strings.HasPrefix(block[0], "*EXPANSION") {
+		return false, nil
+	}
+	f.Expansion, err = strconv.ParseFloat(block[1], 64)
+	if err != nil {
+		return
+	}
 	return true, nil
 }
 
@@ -249,6 +275,8 @@ func Parse(content []byte) (f *Format, err error) {
 			func(block []string) (ok bool, err error) {
 				return f.parseSet(&(f.Elsets), "ELSET", block)
 			},
+			f.parseDensity,
+			f.parseExpansion,
 		} {
 			if len(block) == 0 {
 				panic("empty block")
