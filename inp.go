@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/Konstantin8105/errors"
 )
 
 // Format - summary inp format
@@ -23,8 +25,12 @@ type Format struct {
 	Elsets    []Set
 	Density   float64
 	Expansion float64
-// 	Elastic struct{
-		
+	Elastic   struct {
+		E float64
+		v float64
+	}
+	Boundaries []Boundary
+
 	// 	NodesWithName []NamedNode
 	// 	ShellSections []ShellSection
 	// 	Boundary      []BoundaryProperty
@@ -35,8 +41,26 @@ func (f Format) String() string {
 	return "" //fmt.Sprintf("%v", f.Nodes)
 }
 
+// isHeader return true for example:
+// if prefix = "*NODE", but not "*NODE PRINT"
+//
+// Example of line:
+// *NODE
+// *NODE, somethinks
+// *NODE PRINT
+// *NODE PRINT, simethink
+func isHeader(line, prefix string) bool {
+	index := strings.Index(line, ",")
+	if index > 0 {
+		line = line[:index]
+	}
+	line = strings.TrimSpace(line)
+	prefix = strings.TrimSpace(prefix)
+	return prefix == line
+}
+
 func (f *Format) parseHeading(block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*HEADING") {
+	if !isHeader(block[0], "*HEADING") {
 		return false, nil
 	}
 	if len(block) == 1 {
@@ -69,7 +93,7 @@ type Node struct {
 //   Value of second coordinate.
 //   Value of third coordinate.
 func (f *Format) parseNode(block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*NODE") {
+	if !isHeader(block[0], "*NODE") {
 		return false, nil
 	}
 
@@ -136,7 +160,7 @@ type Element struct {
 //	given in section 2.1. Use continuation lines for elements having more
 //	than 15 nodes (maximum 16 entries per line).
 func (f *Format) parseElement(block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*ELEMENT") {
+	if !isHeader(block[0], "*ELEMENT") {
 		return false, nil
 	}
 
@@ -182,7 +206,7 @@ type Set struct {
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*"+prefix) {
+	if !isHeader(block[0], "*"+prefix) {
 		return false, nil
 	}
 	var name string
@@ -218,7 +242,7 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 }
 
 func (f *Format) parseDensity(block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*DENSITY") {
+	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
 	}
 	f.Density, err = strconv.ParseFloat(block[1], 64)
@@ -229,7 +253,7 @@ func (f *Format) parseDensity(block []string) (ok bool, err error) {
 }
 
 func (f *Format) parseExpansion(block []string) (ok bool, err error) {
-	if !strings.HasPrefix(block[0], "*EXPANSION") {
+	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
 	f.Expansion, err = strconv.ParseFloat(block[1], 64)
@@ -237,6 +261,52 @@ func (f *Format) parseExpansion(block []string) (ok bool, err error) {
 		return
 	}
 	return true, nil
+}
+
+func (f *Format) parseElastic(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*ELASTIC") {
+		return false, nil
+	}
+	line := strings.Replace(block[1], ",", " ", -1)
+	fields := strings.Fields(line)
+	f.Elastic.E, err = strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return
+	}
+	f.Elastic.v, err = strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return
+	}
+
+	return true, nil
+}
+
+// for structures:
+// – 1: translation in the local x-direction
+// – 2: translation in the local y-direction
+// – 3: translation in the local z-direction
+// – 4: rotation about the local x-axis (only for nodes belonging to beams or shells)
+// – 5: rotation about the local y-axis (only for nodes belonging to beams or shells)
+// – 6: rotation about the local z-axis (only for nodes belonging to beams or shells)
+// – 11: temperature
+//
+// First line:
+// 		*BOUNDARY
+// 		Enter any needed parameters and their value.
+// Following line:
+// 		Node number or node set label
+// 		First degree of freedom constrained
+// 		Last degree of freedom constrained. This field may be left blank if only one degree of freedom is constrained.
+type Boundary struct {
+}
+
+func ignore(prefix string) func(block []string) (ok bool, err error) {
+	return func(block []string) (ok bool, err error) {
+		if !strings.HasPrefix(block[0], prefix) {
+			return false, nil
+		}
+		return true, nil
+	}
 }
 
 func Parse(content []byte) (f *Format, err error) {
@@ -251,7 +321,7 @@ func Parse(content []byte) (f *Format, err error) {
 		if s == "" {
 			continue
 		}
-		if strings.HasPrefix(s, "**") {
+		if strings.HasPrefix(s, "**") || strings.HasPrefix(s, ">**") {
 			continue
 		}
 		if strings.HasPrefix(s, "*") {
@@ -260,8 +330,17 @@ func Parse(content []byte) (f *Format, err error) {
 		blocks[len(blocks)-1] = append(blocks[len(blocks)-1], s)
 	}
 
+	// 	for _, bs := range blocks {
+	// 		fmt.Println(	"------------")
+	// 		for _,s := range bs {
+	// 			fmt.Println(	s)
+	// 		}
+	// 	}
+
 	// parsing
 	f = new(Format)
+
+	et := errors.New("parsing errors")
 
 	for _, block := range blocks {
 		var found bool
@@ -277,24 +356,72 @@ func Parse(content []byte) (f *Format, err error) {
 			},
 			f.parseDensity,
 			f.parseExpansion,
+			f.parseElastic,
+			// 			ignore("*HEAT TRANSFER"),
+			// 			ignore("*CONDUCTIVITY"),
+			// 			ignore("*FLUID"),
+			// 			ignore("*SPECIFIC GAS CONSTANT"),
+			// 			ignore("*SPECIFIC HEAT"),
+			// 			ignore("*PHYSICAL CONSTANTS"),
 		} {
 			if len(block) == 0 {
 				panic("empty block")
 			}
-			ok, err := parser(block)
+			var ok bool
+			ok, err = parser(block)
 			if err != nil {
-				fmt.Println("ERROR: ", block[0], err)
-				// TODO : panic(err)
+				et.Add(err)
+				continue
 			}
 			found = found || ok
 		}
 		if !found {
-			fmt.Println("ERROR: ", block[0])
-			// panic(fmt.Errorf("%v",block))
+			if len(block) > 3 {
+				block = block[:3]
+			}
+			err = fmt.Errorf("Not found block : %v", strings.Join(block, "\n"))
+			et.Add(err)
 		}
 	}
 
+	if et.IsError() {
+		err = et
+		return
+	}
+
 	return f, nil
+}
+
+// ParseBucklingFactor in file for example `shell2.dat` and return
+// slice of buckling factors.
+//
+//      B U C K L I N G   F A C T O R   O U T P U T
+//
+//  MODE NO       BUCKLING
+//                 FACTOR
+//
+//       1   0.4185108E+03
+//       2   0.4196190E+03
+//       3   0.4200342E+03
+//       4   0.4212441E+03
+func ParseBucklingFactor(content []byte) (factors []float64, err error) {
+	for _, line := range strings.Split(string(content), "\n")[5:] {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			panic(line)
+		}
+		var factor float64
+		factor, err = strconv.ParseFloat(fields[0], 64)
+		if err != nil {
+			return
+		}
+		factors = append(factors, factor)
+	}
+	return
 }
 
 // lineGroup - group of points
