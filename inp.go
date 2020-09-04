@@ -18,18 +18,32 @@ import (
 
 // Format - summary inp format
 type Format struct {
-	Heading   string
-	Nodes     []Node
-	Elements  []Element
-	Nsets     []Set
-	Elsets    []Set
-	Density   float64
-	Expansion float64
-	Elastic   struct {
-		E float64
-		v float64
+	Heading  string
+	Nodes    []Node
+	Elements []Element
+	Nsets    []Set
+	Elsets   []Set
+	Material struct {
+		Name      string
+		Density   float64
+		Expansion float64
+		Elastic   struct {
+			E float64
+			v float64
+		}
 	}
-	Boundaries []Boundary
+	Boundaries   []Boundary
+	ShellSection struct {
+		Material  string
+		Elements  string
+		Offset    float64
+		Thickness float64
+	}
+	// 	Step struct {
+	// 		Buckle    int
+	// 		Loads     []Load
+	// 		NodeFiles []string
+	// 	}
 
 	// 	NodesWithName []NamedNode
 	// 	ShellSections []ShellSection
@@ -245,7 +259,7 @@ func (f *Format) parseDensity(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
 	}
-	f.Density, err = strconv.ParseFloat(block[1], 64)
+	f.Material.Density, err = strconv.ParseFloat(block[1], 64)
 	if err != nil {
 		return
 	}
@@ -256,9 +270,29 @@ func (f *Format) parseExpansion(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
-	f.Expansion, err = strconv.ParseFloat(block[1], 64)
+	f.Material.Expansion, err = strconv.ParseFloat(block[1], 64)
 	if err != nil {
 		return
+	}
+	return true, nil
+}
+
+func (f *Format) parseMaterial(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*MATERIAL") {
+		return false, nil
+	}
+	line := block[0]
+	line = strings.Replace(line, ",", " ", -1)
+	fields := strings.Fields(line)
+	if len(fields) > 1 {
+		for _, field := range fields[1:] {
+			switch {
+			case strings.HasPrefix(field, "NAME="):
+				f.Material.Name = field[4:]
+			default:
+				panic(fmt.Errorf("`%s` : `%s`", line, field))
+			}
+		}
 	}
 	return true, nil
 }
@@ -269,11 +303,11 @@ func (f *Format) parseElastic(block []string) (ok bool, err error) {
 	}
 	line := strings.Replace(block[1], ",", " ", -1)
 	fields := strings.Fields(line)
-	f.Elastic.E, err = strconv.ParseFloat(fields[0], 64)
+	f.Material.Elastic.E, err = strconv.ParseFloat(fields[0], 64)
 	if err != nil {
 		return
 	}
-	f.Elastic.v, err = strconv.ParseFloat(fields[0], 64)
+	f.Material.Elastic.v, err = strconv.ParseFloat(fields[0], 64)
 	if err != nil {
 		return
 	}
@@ -298,11 +332,96 @@ func (f *Format) parseElastic(block []string) (ok bool, err error) {
 // 		First degree of freedom constrained
 // 		Last degree of freedom constrained. This field may be left blank if only one degree of freedom is constrained.
 type Boundary struct {
+	LoadLocation string
+	Start        int
+	Finish       int
+	Factor       float64
+}
+
+func (f *Format) parseBoundary(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*BOUNDARY") {
+		return false, nil
+	}
+	for _, line := range block[1:] {
+		line = strings.Replace(line, ",", " ", -1)
+		fields := strings.Fields(line)
+		var b Boundary
+		b.LoadLocation = fields[0]
+
+		var i64 int64
+
+		if len(fields) == 2 {
+			i64, err = strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return
+			}
+			b.Start = int(i64)
+		}
+
+		if len(fields) == 3 {
+			i64, err = strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				return
+			}
+			b.Finish = int(i64)
+		}
+
+		if len(fields) == 4 {
+			b.Factor, err = strconv.ParseFloat(fields[3], 64)
+			if err != nil {
+				return
+			}
+		}
+
+		f.Boundaries = append(f.Boundaries, b)
+	}
+
+	return true, nil
+}
+
+// *SHELL SECTION,MATERIAL=steel,ELSET=Eall,,OFFSET=0
+// 6.2500E-02
+func (f *Format) parseShellSection(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*SHELL SECTION") {
+		return false, nil
+	}
+	split := strings.Split(block[0], ",")[1:]
+	for _, s := range split {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "MATERIAL"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			f.ShellSection.Material = s
+		case strings.HasPrefix(s, "ELSET"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			f.ShellSection.Elements = s
+		case strings.HasPrefix(s, "OFFSET"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			f.ShellSection.Offset, err = strconv.ParseFloat(s, 64)
+			if err != nil {
+				return
+			}
+		case s == "":
+			// do nothing
+		default:
+			panic(s)
+		}
+	}
+	line := strings.TrimSpace(block[1])
+	f.ShellSection.Thickness, err = strconv.ParseFloat(line, 64)
+	if err != nil {
+		return
+	}
+
+	return true, nil
 }
 
 func ignore(prefix string) func(block []string) (ok bool, err error) {
 	return func(block []string) (ok bool, err error) {
-		if !strings.HasPrefix(block[0], prefix) {
+		if !isHeader(block[0], prefix) {
 			return false, nil
 		}
 		return true, nil
@@ -328,6 +447,28 @@ func Parse(content []byte) (f *Format, err error) {
 			blocks = append(blocks, []string{})
 		}
 		blocks[len(blocks)-1] = append(blocks[len(blocks)-1], s)
+	}
+
+	{
+		var steps []string
+		record := false
+		for i := range blocks {
+			if len(blocks) == 0 {
+				continue
+			}
+			if isHeader(blocks[i][0], "*STEP") {
+				record = true
+			}
+			if record == false {
+				continue
+			}
+			if isHeader(blocks[i][0], "*END STEP") {
+				record = false
+			}
+			steps = append(steps, blocks[i]...)
+			blocks[i] = []string{}
+		}
+		blocks = append(blocks, steps)
 	}
 
 	// 	for _, bs := range blocks {
@@ -357,15 +498,19 @@ func Parse(content []byte) (f *Format, err error) {
 			f.parseDensity,
 			f.parseExpansion,
 			f.parseElastic,
-			// 			ignore("*HEAT TRANSFER"),
-			// 			ignore("*CONDUCTIVITY"),
-			// 			ignore("*FLUID"),
-			// 			ignore("*SPECIFIC GAS CONSTANT"),
-			// 			ignore("*SPECIFIC HEAT"),
-			// 			ignore("*PHYSICAL CONSTANTS"),
+			f.parseBoundary,
+			f.parseMaterial,
+			ignore("*SURFACE"),
+			f.parseShellSection,
+			// ignore("*HEAT TRANSFER"),
+			// ignore("*CONDUCTIVITY"),
+			// ignore("*FLUID"),
+			// ignore("*SPECIFIC GAS CONSTANT"),
+			// ignore("*SPECIFIC HEAT"),
+			// ignore("*PHYSICAL CONSTANTS"),
 		} {
 			if len(block) == 0 {
-				panic("empty block")
+				continue
 			}
 			var ok bool
 			ok, err = parser(block)

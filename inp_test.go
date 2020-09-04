@@ -20,6 +20,9 @@ func Test(t *testing.T) {
 		"beammr",
 		"beammnh",
 		"beammld",
+		// "shell",
+		// "concrete",
+		"solidshell",
 	} {
 		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
 		if err != nil {
