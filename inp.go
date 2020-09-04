@@ -34,16 +34,33 @@ type Format struct {
 	}
 	Boundaries   []Boundary
 	ShellSection struct {
-		Material  string
 		Elements  string
 		Offset    float64
-		Thickness float64
+		Composite bool
+		Property  [12]struct {
+			Thickness float64
+			Material  string
+		}
 	}
-	// 	Step struct {
-	// 		Buckle    int
-	// 		Loads     []Load
-	// 		NodeFiles []string
-	// 	}
+	Step struct {
+		IsStatic bool
+		Static   struct {
+			TimeInc    float64
+			TimePeriod float64
+		}
+
+		Nlgeom bool // genuine nonlinear geometric calculation
+		Inc    int  // The maximum number of increments in the step (for automatic
+		// incrementation) can be specified by using
+		// the parameter INC (default is 100)
+
+		Buckle     int
+		NodeFiles  []Print
+		ElFiles    []Print
+		NodePrints []Print
+		ElPrints   []Print
+		Loads      []Load
+	}
 
 	// 	NodesWithName []NamedNode
 	// 	ShellSections []ShellSection
@@ -392,7 +409,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		case strings.HasPrefix(s, "MATERIAL"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			f.ShellSection.Material = s
+			f.ShellSection.Property[0].Material = s
 		case strings.HasPrefix(s, "ELSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
@@ -406,14 +423,268 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 			}
 		case s == "":
 			// do nothing
+		case s == "COMPOSITE":
+			f.ShellSection.Composite = true
+		default:
+			panic(fmt.Errorf("%s", strings.Join(split, "|")))
+		}
+	}
+	if f.ShellSection.Composite {
+		for pos, line := range block[1:] {
+			line = strings.Replace(line, ",", " ", -1)
+			fields := strings.Fields(line)
+			f.ShellSection.Property[pos].Thickness, err = strconv.ParseFloat(fields[0], 64)
+			if err != nil {
+				err = fmt.Errorf("%v : %v", block, err)
+				return
+			}
+			f.ShellSection.Property[pos].Material = fields[1]
+		}
+	} else {
+		line := strings.TrimSpace(block[1])
+		f.ShellSection.Property[0].Thickness, err = strconv.ParseFloat(line, 64)
+		if err != nil {
+			err = fmt.Errorf("%v : %v", block, err)
+			return
+		}
+	}
+
+	return true, nil
+}
+
+// Examples:
+//
+// *STEP
+// *STEP,NLGEOM
+// *STEP,INC=100,NLGEOM
+func (f *Format) parseStep(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*STEP") {
+		return false, nil
+	}
+	if len(block) > 1 {
+		panic("*STEP parameter")
+	}
+	for _, part := range strings.Split(block[0], ",")[1:] {
+		part = strings.TrimSpace(part)
+		switch {
+		case part == "NLGEOM":
+			f.Step.Nlgeom = true
+		case strings.HasPrefix(part, "INC="):
+			part = part[4:]
+			var i64 int64
+			i64, err = strconv.ParseInt(part, 10, 64)
+			if err != nil {
+				return
+			}
+			f.Step.Inc = int(i64)
+		default:
+			panic(part)
+		}
+	}
+
+	return true, nil
+}
+
+// First line:
+// 		*BUCKLE
+// Second line:
+// 		Number of buckling factors desired (usually 1).
+// 		Accuracy desired (default: 0.01).
+// 		# Lanczos vectors calculated in each iteration (default: 4 * #eigenvalues).
+// 		Maximum # of iterations (default: 1000).
+func (f *Format) parseBuckle(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*BUCKLE") {
+		return false, nil
+	}
+	if len(block) > 2 {
+		panic("*STEP parameter")
+	}
+	part := strings.TrimSpace(block[1])
+	var i64 int64
+	i64, err = strconv.ParseInt(part, 10, 64)
+	if err != nil {
+		return
+	}
+	f.Step.Buckle = int(i64)
+
+	return true, nil
+}
+
+type File struct {
+	Options []string
+}
+
+type Print struct {
+	SetName        string
+	Frequency      int
+	Output         string
+	TimePoints     string
+	ContactElement bool
+	Global         bool
+	Options        []string
+}
+
+// Example:
+//
+// [*NODE FILE ,TIME POINTS=T1 U,]
+// [*EL FILE,TIME POINTS=T1 S,PEEQ,]
+//
+// MAXU [MDISP]: Maximum displacements orthogonal to a given vector
+// at all times for *FREQUENCY calculations with cyclic symmetry. The
+// components of the vector are the coordinates of a node stored in a node
+// set with the name RAY. This node and node set must have been defined
+// by the user.
+//
+// PU [PDISP]: Displacements: magnitude and phase (only for *STEADY STATE DYNAMICS
+// calculations and *FREQUENCY calculations with cyclic symmetry).
+//
+// RF [FORC(real), FORCI(imaginary)]: External forces (only static forces;
+// dynamic forces, such as those caused by dashpots, are not included)
+//
+// U [DISP(real), DISPI(imaginary)]: Displacements.
+//
+//
+// [*NODE PRINT,NSET=N1 RF]
+// [*NODE PRINT,NSET=NALL U,RF]
+// [*NODE PRINT,NSET=NALL U]
+// [*NODE PRINT,NSET=FIX,TIME POINTS=T1 RF]
+// [*NODE PRINT,NSET=LOAD,TIME POINTS=T1 RF]
+//
+// Displacements (key=U)
+//
+// External forces (key=RF) (only static forces; dynamic forces, such as those
+// caused by dashpots, are not included)
+//
+// Structural temperatures and total temperatures in networks (key=NT or
+// TS; both are equivalent)
+//
+// Example:
+//		*NODE FILE,TIME POINTS=T1
+//		RF,NT
+// requests the storage of reaction forces and temperatures in the .frd file for
+// all time points defined by the T1 time points sequence
+func (f *Format) parsePrint(block []string, prefix string, pr *[]Print) (ok bool, err error) {
+	if !isHeader(block[0], prefix) {
+		return false, nil
+	}
+	var np Print
+	for _, s := range strings.Split(block[0], ",")[1:] {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "NSET="):
+			s = s[4:]
+			np.SetName = s
+		case strings.HasPrefix(s, "ELSET="):
+			s = s[5:]
+			np.SetName = s
+		case strings.HasPrefix(s, "GLOBAL="):
+			s = s[6:]
+			np.Global = s == "YES"
+		case strings.HasPrefix(s, "TIME POINTS="):
+			s = s[11:]
+			np.TimePoints = s
+		case strings.HasPrefix(s, "FREQUENCY="):
+			s = s[9:]
+			var i64 int64
+			i64, err = strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				return
+			}
+			np.Frequency = int(i64)
 		default:
 			panic(s)
 		}
 	}
-	line := strings.TrimSpace(block[1])
-	f.ShellSection.Thickness, err = strconv.ParseFloat(line, 64)
+	np.Options = strings.Fields(strings.Replace(block[1], ",", " ", -1))
+
+	(*pr) = append((*pr), np)
+
+	return true, nil
+}
+
+// [*STATIC 0.01,1]
+//
+// First line:
+// • *STATIC
+// • Enter any needed parameters and their values.
+//
+// Second line (only relevant for nonlinear analyses; for linear analyses, the step
+// length is always 1)
+// • Initial time increment. This value will be modified due to automatic in-
+//   crementation, unless the parameter DIRECT was specified (default 1.).
+// • Time period of the step (default 1.).
+// • Minimum time increment allowed. Only active if DIRECT is not specified.
+// Default is the initial time increment or 1.e-5 times the time period of the
+// step, whichever is smaller.
+// • Maximum time increment allowed. Only active if DIRECT is not specified.
+//   Default is 1.e+30
+// • Initial time increment for CFD applications (default 1.e-2)
+func (f *Format) parseStatic(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*STATIC") {
+		return false, nil
+	}
+	f.Step.IsStatic = true
+	if len(block) == 1 {
+		return true, nil
+	}
+	if len(block) != 2 {
+		panic(block)
+	}
+	fields := strings.Fields(strings.Replace(block[1], ",", " ", -1))
+	if len(fields) != 2 {
+		panic(block)
+	}
+
+	f.Step.Static.TimeInc, err = strconv.ParseFloat(fields[0], 64)
 	if err != nil {
+		err = fmt.Errorf("%v : %v", block, err)
 		return
+	}
+
+	f.Step.Static.TimePeriod, err = strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		err = fmt.Errorf("%v : %v", block, err)
+		return
+	}
+
+	return true, nil
+}
+
+type Load struct {
+	Position  string
+	Direction int
+	Value     float64
+}
+
+// [*CLOAD 5, 1, 5000.0]
+// [*CLOAD 2,3,0.0025]
+// [*CLOAD LOAD,3,-3.3112583E+00]
+func (f *Format) parseCload(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*CLOAD") {
+		return false, nil
+	}
+	for _, line := range block[1:] {
+		line = strings.Replace(line, ",", " ", -1)
+		fields := strings.Fields(line)
+		if len(fields) != 3 {
+			panic(line)
+		}
+		var l Load
+		l.Position = fields[0]
+
+		var i64 int64
+		i64, err = strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			return
+		}
+		l.Direction = int(i64)
+
+		l.Value, err = strconv.ParseFloat(fields[2], 64)
+		if err != nil {
+			return
+		}
+
+		f.Step.Loads = append(f.Step.Loads, l)
 	}
 
 	return true, nil
@@ -450,25 +721,18 @@ func Parse(content []byte) (f *Format, err error) {
 	}
 
 	{
-		var steps []string
-		record := false
+		counter := 0
 		for i := range blocks {
 			if len(blocks) == 0 {
 				continue
 			}
 			if isHeader(blocks[i][0], "*STEP") {
-				record = true
+				counter++
 			}
-			if record == false {
-				continue
-			}
-			if isHeader(blocks[i][0], "*END STEP") {
-				record = false
-			}
-			steps = append(steps, blocks[i]...)
-			blocks[i] = []string{}
 		}
-		blocks = append(blocks, steps)
+		if 1 < counter {
+			panic("counter *STEP is not support")
+		}
 	}
 
 	// 	for _, bs := range blocks {
@@ -485,7 +749,7 @@ func Parse(content []byte) (f *Format, err error) {
 
 	for _, block := range blocks {
 		var found bool
-		for _, parser := range []func(block []string) (ok bool, err error){
+		for parserPos, parser := range []func(block []string) (ok bool, err error){
 			f.parseNode,
 			f.parseHeading,
 			f.parseElement,
@@ -502,6 +766,23 @@ func Parse(content []byte) (f *Format, err error) {
 			f.parseMaterial,
 			ignore("*SURFACE"),
 			f.parseShellSection,
+			f.parseStep,
+			f.parseBuckle,
+			f.parseStatic,
+			func(block []string) (ok bool, err error) {
+				return f.parsePrint(block, "*NODE FILE", &(f.Step.NodeFiles))
+			},
+			func(block []string) (ok bool, err error) {
+				return f.parsePrint(block, "*EL FILE", &(f.Step.ElFiles))
+			},
+			func(block []string) (ok bool, err error) {
+				return f.parsePrint(block, "*NODE PRINT", &(f.Step.NodePrints))
+			},
+			func(block []string) (ok bool, err error) {
+				return f.parsePrint(block, "*EL PRINT", &(f.Step.ElPrints))
+			},
+			f.parseCload,
+			ignore("*END STEP"),
 			// ignore("*HEAT TRANSFER"),
 			// ignore("*CONDUCTIVITY"),
 			// ignore("*FLUID"),
@@ -515,7 +796,7 @@ func Parse(content []byte) (f *Format, err error) {
 			var ok bool
 			ok, err = parser(block)
 			if err != nil {
-				et.Add(err)
+				et.Add(fmt.Errorf("№ %d: %v", parserPos, err))
 				continue
 			}
 			found = found || ok

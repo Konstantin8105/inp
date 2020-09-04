@@ -20,6 +20,7 @@ func Test(t *testing.T) {
 		"beammr",
 		"beammnh",
 		"beammld",
+		"shellbeam",
 		// "shell",
 		// "concrete",
 		"solidshell",
