@@ -49,9 +49,9 @@ func Test(t *testing.T) {
 
 func Example() {
 	for _, file := range []string{
-// 		"./convertorInp/Example/shell.inp",
-// 		"./convertorInp/Example/shell2.inp",
-		"./convertorInp/Example/cone.inp",
+ //		"./convertorInp/Example/shell.inp",
+ 		"./convertorInp/Example/shell2.inp",
+//		"./convertorInp/Example/cone.inp",
 	} {
 		fmt.Fprintf(os.Stdout, "\nfilename: %s\n", file)
 		content, err := ioutil.ReadFile(file)

@@ -9,6 +9,7 @@ package inp
 // *ELSET,ELSET=shell3
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,7 +33,6 @@ type Format struct {
 			v float64
 		}
 	}
-	Boundaries   []Boundary
 	ShellSection struct {
 		Elements  string
 		Offset    float64
@@ -42,6 +42,7 @@ type Format struct {
 			Material  string
 		}
 	}
+	Boundaries   []Boundary
 	Step struct {
 		IsStatic bool
 		Static   struct {
@@ -76,32 +77,27 @@ type Format struct {
 			TimeInc   float64
 		}
 	}
-
-	// 	NodesWithName []NamedNode
-	// 	ShellSections []ShellSection
-	// 	Boundary      []BoundaryProperty
-	// 	Step          StepProperty
 }
 
 func (f Format) String() string {
-	var out string
+	var buf bytes.Buffer
 
 	if f.Heading != "" {
-		out += fmt.Sprintf("*Heading\n")
-		out += fmt.Sprintf(" %s\n", f.Heading)
+		fmt.Fprintf(&buf, "*Heading\n")
+		fmt.Fprintf(&buf, " %s\n", f.Heading)
 	}
 	if len(f.Nodes) > 0 {
 		addHeader := true
 		for pos, node := range f.Nodes {
 			if addHeader {
-				out += fmt.Sprintf("*NODE")
+				fmt.Fprintf(&buf, "*NODE")
 				if node.Nodeset != "" {
-					out += fmt.Sprintf(",NSET=%s", node.Nodeset)
+					fmt.Fprintf(&buf, ",NSET=%s", node.Nodeset)
 				}
-				out += fmt.Sprintf("\n")
+				fmt.Fprintf(&buf, "\n")
 				addHeader = false
 			}
-			out += fmt.Sprintf("%5d, %+.12e, %+.12e, %+.12e\n",
+			fmt.Fprintf(&buf, "%5d, %+.12e, %+.12e, %+.12e\n",
 				node.Index, node.Coord[0], node.Coord[1], node.Coord[2])
 			if pos != len(f.Nodes)-1 {
 				if f.Nodes[pos].Nodeset != f.Nodes[pos+1].Nodeset {
@@ -114,23 +110,23 @@ func (f Format) String() string {
 		addHeader := true
 		for pos, el := range f.Elements {
 			if addHeader {
-				out += fmt.Sprintf("*ELEMENT")
+				fmt.Fprintf(&buf, "*ELEMENT")
 				if el.Type != "" {
-					out += fmt.Sprintf(", type=%s", el.Type)
+					fmt.Fprintf(&buf, ", type=%s", el.Type)
 				}
 				if el.Elset != "" {
-					out += fmt.Sprintf(", ELSET=%s", el.Elset)
+					fmt.Fprintf(&buf, ", ELSET=%s", el.Elset)
 				}
-				out += "\n"
+				fmt.Fprintf(&buf, "\n")
 				addHeader = false
 			}
-			out += fmt.Sprintf("%5d,", el.Index)
+			fmt.Fprintf(&buf, "%5d,", el.Index)
 			for pos, v := range el.Nodes {
-				out += fmt.Sprintf(" %5d", v)
+				fmt.Fprintf(&buf, " %5d", v)
 				if pos != len(el.Nodes)-1 {
-					out += ","
+					fmt.Fprintf(&buf, ",")
 				} else {
-					out += "\n"
+					fmt.Fprintf(&buf, "\n")
 				}
 			}
 			if pos != len(f.Elements)-1 {
@@ -143,8 +139,77 @@ func (f Format) String() string {
 			}
 		}
 	}
+	if len(f.Nsets) > 0 {
+		addHeader := true
+		for pos, el := range f.Nsets {
+			if addHeader {
+				fmt.Fprintf(&buf, "*NSET")
+				if el.Name != "" {
+					fmt.Fprintf(&buf, ", NSET=%s", el.Name)
+				}
+				if el.Generate {
+					fmt.Fprintf(&buf, ", GENERATE")
+				}
+				fmt.Fprintf(&buf, "\n")
+				addHeader = false
+			}
+			for _, ind := range el.Indexes {
+				fmt.Fprintf(&buf, "%5d,\n", ind)
+			}
+			if pos != len(f.Nsets)-1 {
+				if f.Nsets[pos].Name != f.Nsets[pos+1].Name {
+					addHeader = true
+				}
+				if f.Nsets[pos].Generate != f.Nsets[pos+1].Generate {
+					addHeader = true
+				}
+			}
+		}
+	}
+	if len(f.Elsets) > 0 {
+		addHeader := true
+		for pos, el := range f.Elsets {
+			if addHeader {
+				fmt.Fprintf(&buf, "*ELSET")
+				if el.Name != "" {
+					fmt.Fprintf(&buf, ", ELSET=%s", el.Name)
+				}
+				if el.Generate {
+					fmt.Fprintf(&buf, ", GENERATE")
+				}
+				fmt.Fprintf(&buf, "\n")
+				addHeader = false
+			}
+			for _, ind := range el.Indexes {
+				fmt.Fprintf(&buf, "%5d,\n", ind)
+			}
+			if pos != len(f.Elsets)-1 {
+				if f.Elsets[pos].Name != f.Elsets[pos+1].Name {
+					addHeader = true
+				}
+				if f.Elsets[pos].Generate != f.Elsets[pos+1].Generate {
+					addHeader = true
+				}
+			}
+		}
+	}
+	if f.Material.Name != "" {
+		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", f.Material.Name)
+	}
+	if f.Material.Elastic.E != 0.0 {
+		fmt.Fprintf(&buf, "*ELASTIC\n%.8e, %.8e\n",
+			f.Material.Elastic.E,
+			f.Material.Elastic.v,
+		)
+	}
+	if f.Material.Expansion != 0.0 {
+		fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
+	}
+	if f.Material.Density != 0.0 {
+		fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
+	}
 
-	return out
+	return buf.String()
 }
 
 // isHeader return true for example:
@@ -322,9 +387,9 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 		s = strings.TrimSpace(s)
 		switch {
 		case strings.HasPrefix(s, "ELSET="):
-			set.Name = s[5:]
+			set.Name = s[6:]
 		case strings.HasPrefix(s, "NSET="):
-			set.Name = s[4:]
+			set.Name = s[5:]
 		case s == "GENERATE":
 			set.Generate = true
 		default:
@@ -381,7 +446,7 @@ func (f *Format) parseMaterial(block []string) (ok bool, err error) {
 		for _, field := range fields[1:] {
 			switch {
 			case strings.HasPrefix(field, "NAME="):
-				f.Material.Name = field[4:]
+				f.Material.Name = field[5:]
 			default:
 				panic(fmt.Errorf("`%s` : `%s`", line, field))
 			}
@@ -648,19 +713,19 @@ func (f *Format) parsePrint(block []string, prefix string, pr *[]Print) (ok bool
 		s = strings.TrimSpace(s)
 		switch {
 		case strings.HasPrefix(s, "NSET="):
-			s = s[4:]
-			np.SetName = s
-		case strings.HasPrefix(s, "ELSET="):
 			s = s[5:]
 			np.SetName = s
-		case strings.HasPrefix(s, "GLOBAL="):
+		case strings.HasPrefix(s, "ELSET="):
 			s = s[6:]
+			np.SetName = s
+		case strings.HasPrefix(s, "GLOBAL="):
+			s = s[7:]
 			np.Global = s == "YES"
 		case strings.HasPrefix(s, "TIME POINTS="):
-			s = s[11:]
+			s = s[12:]
 			np.TimePoints = s
 		case strings.HasPrefix(s, "FREQUENCY="):
-			s = s[9:]
+			s = s[10:]
 			var i64 int64
 			i64, err = strconv.ParseInt(s, 10, 64)
 			if err != nil {
@@ -775,7 +840,7 @@ func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
 		s = strings.TrimSpace(s)
 		switch {
 		case strings.HasPrefix(s, "NAME="):
-			s = s[4:]
+			s = s[5:]
 			f.Step.TimePoint.Name = s
 		case strings.HasPrefix(s, "GENERATE"):
 			f.Step.TimePoint.Generate = true
