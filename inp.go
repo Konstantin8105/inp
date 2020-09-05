@@ -48,6 +48,14 @@ type Format struct {
 			TimeInc    float64
 			TimePeriod float64
 		}
+		Plastic struct {
+			Hardening string
+			Data      [10]struct {
+				StressVonMises float64
+				PlasticStrain  float64
+				Temperature    float64
+			}
+		}
 
 		Nlgeom bool // genuine nonlinear geometric calculation
 		Inc    int  // The maximum number of increments in the step (for automatic
@@ -60,6 +68,13 @@ type Format struct {
 		NodePrints []Print
 		ElPrints   []Print
 		Loads      []Load
+		TimePoint  struct {
+			Name      string
+			Generate  bool
+			TimeStart float64
+			TimeEnd   float64
+			TimeInc   float64
+		}
 	}
 
 	// 	NodesWithName []NamedNode
@@ -69,7 +84,67 @@ type Format struct {
 }
 
 func (f Format) String() string {
-	return "" //fmt.Sprintf("%v", f.Nodes)
+	var out string
+
+	if f.Heading != "" {
+		out += fmt.Sprintf("*Heading\n")
+		out += fmt.Sprintf(" %s\n", f.Heading)
+	}
+	if len(f.Nodes) > 0 {
+		addHeader := true
+		for pos, node := range f.Nodes {
+			if addHeader {
+				out += fmt.Sprintf("*NODE")
+				if node.Nodeset != "" {
+					out += fmt.Sprintf(",NSET=%s", node.Nodeset)
+				}
+				out += fmt.Sprintf("\n")
+				addHeader = false
+			}
+			out += fmt.Sprintf("%5d, %+.12e, %+.12e, %+.12e\n",
+				node.Index, node.Coord[0], node.Coord[1], node.Coord[2])
+			if pos != len(f.Nodes)-1 {
+				if f.Nodes[pos].Nodeset != f.Nodes[pos+1].Nodeset {
+					addHeader = true
+				}
+			}
+		}
+	}
+	if len(f.Elements) > 0 {
+		addHeader := true
+		for pos, el := range f.Elements {
+			if addHeader {
+				out += fmt.Sprintf("*ELEMENT")
+				if el.Type != "" {
+					out += fmt.Sprintf(", type=%s", el.Type)
+				}
+				if el.Elset != "" {
+					out += fmt.Sprintf(", ELSET=%s", el.Elset)
+				}
+				out += "\n"
+				addHeader = false
+			}
+			out += fmt.Sprintf("%5d,", el.Index)
+			for pos, v := range el.Nodes {
+				out += fmt.Sprintf(" %5d", v)
+				if pos != len(el.Nodes)-1 {
+					out += ","
+				} else {
+					out += "\n"
+				}
+			}
+			if pos != len(f.Elements)-1 {
+				if f.Elements[pos].Type != f.Elements[pos+1].Type {
+					addHeader = true
+				}
+				if f.Elements[pos].Elset != f.Elements[pos+1].Elset {
+					addHeader = true
+				}
+			}
+		}
+	}
+
+	return out
 }
 
 // isHeader return true for example:
@@ -204,7 +279,7 @@ func (f *Format) parseElement(block []string) (ok bool, err error) {
 				Type = f[5:]
 			}
 			if strings.HasPrefix(f, "ELSET=") {
-				Elset = f[5:]
+				Elset = f[6:]
 			}
 		}
 	}
@@ -232,42 +307,43 @@ func (f *Format) parseElement(block []string) (ok bool, err error) {
 }
 
 type Set struct {
-	Name    string
-	Indexes []int
+	Name     string
+	Generate bool
+	Indexes  []int
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*"+prefix) {
 		return false, nil
 	}
-	var name string
-	{
-		block[0] = strings.Replace(block[0], ",", " ", -1)
-		fields := strings.Fields(block[0])
-		for _, f := range fields {
-			if strings.HasPrefix(f, prefix+"=") {
-				name = f[len(prefix)+1:]
-			}
+
+	var set Set
+	for _, s := range strings.Split(block[0], ",")[1:] {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "ELSET="):
+			set.Name = s[5:]
+		case strings.HasPrefix(s, "NSET="):
+			set.Name = s[4:]
+		case s == "GENERATE":
+			set.Generate = true
+		default:
+			panic(block[0])
 		}
 	}
-	var ints []int
 	for _, line := range block[1:] {
 		line = strings.Replace(line, ",", " ", -1)
 		fields := strings.Fields(line)
-		var ints []int
 		for _, f := range fields {
 			var i64 int64
 			i64, err = strconv.ParseInt(f, 10, 64)
 			if err != nil {
 				return
 			}
-			ints = append(ints, int(i64))
+			set.Indexes = append(set.Indexes, int(i64))
 		}
 	}
-	(*s) = append((*s), Set{
-		Name:    name,
-		Indexes: ints,
-	})
+	(*s) = append((*s), set)
 
 	return true, nil
 }
@@ -690,6 +766,84 @@ func (f *Format) parseCload(block []string) (ok bool, err error) {
 	return true, nil
 }
 
+func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*TIME POINTS") {
+		return false, nil
+	}
+
+	for _, s := range strings.Split(block[0], ",")[1:] {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "NAME="):
+			s = s[4:]
+			f.Step.TimePoint.Name = s
+		case strings.HasPrefix(s, "GENERATE"):
+			f.Step.TimePoint.Generate = true
+		default:
+			panic(s)
+		}
+	}
+
+	line := strings.Replace(block[1], ",", " ", -1)
+	fields := strings.Fields(line)
+
+	f.Step.TimePoint.TimeStart, err = strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return
+	}
+	f.Step.TimePoint.TimeEnd, err = strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		return
+	}
+	f.Step.TimePoint.TimeInc, err = strconv.ParseFloat(fields[2], 64)
+	if err != nil {
+		return
+	}
+
+	return true, nil
+}
+
+func (f *Format) parsePlastic(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*PLASTIC") {
+		return false, nil
+	}
+
+	for _, s := range strings.Split(block[0], ",")[1:] {
+		s = strings.TrimSpace(s)
+		prefixH := "HARDENING="
+		switch {
+		case strings.HasPrefix(s, prefixH):
+			s = s[len(prefixH)+1:]
+			f.Step.Plastic.Hardening = s
+		default:
+			panic(s)
+		}
+	}
+
+	for pos, line := range block[1:] {
+		line = strings.Replace(line, ",", " ", -1)
+		fields := strings.Fields(line)
+
+		f.Step.Plastic.Data[pos].StressVonMises, err = strconv.ParseFloat(fields[0], 64)
+		if err != nil {
+			return
+		}
+		f.Step.Plastic.Data[pos].PlasticStrain, err = strconv.ParseFloat(fields[1], 64)
+		if err != nil {
+			return
+		}
+		if len(fields) == 2 {
+			continue
+		}
+		f.Step.Plastic.Data[pos].Temperature, err = strconv.ParseFloat(fields[2], 64)
+		if err != nil {
+			return
+		}
+	}
+
+	return true, nil
+}
+
 func ignore(prefix string) func(block []string) (ok bool, err error) {
 	return func(block []string) (ok bool, err error) {
 		if !isHeader(block[0], prefix) {
@@ -769,6 +923,7 @@ func Parse(content []byte) (f *Format, err error) {
 			f.parseStep,
 			f.parseBuckle,
 			f.parseStatic,
+			f.parsePlastic,
 			func(block []string) (ok bool, err error) {
 				return f.parsePrint(block, "*NODE FILE", &(f.Step.NodeFiles))
 			},
@@ -782,6 +937,7 @@ func Parse(content []byte) (f *Format, err error) {
 				return f.parsePrint(block, "*EL PRINT", &(f.Step.ElPrints))
 			},
 			f.parseCload,
+			f.parseTimePoint,
 			ignore("*END STEP"),
 			// ignore("*HEAT TRANSFER"),
 			// ignore("*CONDUCTIVITY"),
