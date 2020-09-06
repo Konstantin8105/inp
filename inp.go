@@ -33,17 +33,9 @@ type Format struct {
 			v float64
 		}
 	}
-	ShellSection struct {
-		Elements  string
-		Offset    float64
-		Composite bool
-		Property  [12]struct {
-			Thickness float64
-			Material  string
-		}
-	}
-	Boundaries   []Boundary
-	Step struct {
+	ShellSections []ShellSection
+	Boundaries    []Boundary
+	Step          struct {
 		IsStatic bool
 		Static   struct {
 			TimeInc    float64
@@ -202,11 +194,33 @@ func (f Format) String() string {
 			f.Material.Elastic.v,
 		)
 	}
-	if f.Material.Expansion != 0.0 {
-		fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
+	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
+	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
+
+	for _, ss := range f.ShellSections {
+		if ss.Elements == "" {
+			continue
+		}
+		fmt.Fprintf(&buf, "*SHELL SECTION")
+		fmt.Fprintf(&buf, ", ELSET=%s", ss.Elements)
+		fmt.Fprintf(&buf, ", OFFSET=%f", ss.Offset)
+		if ss.Composite {
+			fmt.Fprintf(&buf, ", COMPOSITE")
+			fmt.Fprintf(&buf, "\n")
+			for _, row := range ss.Property {
+				fmt.Fprintf(&buf, "%.8e,, %s\n", row.Thickness, row.Material)
+			}
+		} else {
+			fmt.Fprintf(&buf, ", MATERIAL=%s", ss.Property[0].Material)
+			fmt.Fprintf(&buf, "\n")
+			fmt.Fprintf(&buf, "%.8f\n", ss.Property[0].Thickness)
+		}
 	}
-	if f.Material.Density != 0.0 {
-		fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
+
+	for _, boun := range f.Boundaries {
+		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
+			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
+		)
 	}
 
 	return buf.String()
@@ -508,7 +522,7 @@ func (f *Format) parseBoundary(block []string) (ok bool, err error) {
 
 		var i64 int64
 
-		if len(fields) == 2 {
+		if len(fields) > 1 {
 			i64, err = strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
 				return
@@ -516,7 +530,7 @@ func (f *Format) parseBoundary(block []string) (ok bool, err error) {
 			b.Start = int(i64)
 		}
 
-		if len(fields) == 3 {
+		if len(fields) > 2 {
 			i64, err = strconv.ParseInt(fields[2], 10, 64)
 			if err != nil {
 				return
@@ -524,7 +538,7 @@ func (f *Format) parseBoundary(block []string) (ok bool, err error) {
 			b.Finish = int(i64)
 		}
 
-		if len(fields) == 4 {
+		if len(fields) > 3 {
 			b.Factor, err = strconv.ParseFloat(fields[3], 64)
 			if err != nil {
 				return
@@ -537,12 +551,23 @@ func (f *Format) parseBoundary(block []string) (ok bool, err error) {
 	return true, nil
 }
 
+type ShellSection struct {
+	Elements  string
+	Offset    float64
+	Composite bool
+	Property  [12]struct {
+		Thickness float64
+		Material  string
+	}
+}
+
 // *SHELL SECTION,MATERIAL=steel,ELSET=Eall,,OFFSET=0
 // 6.2500E-02
 func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*SHELL SECTION") {
 		return false, nil
 	}
+	var ss ShellSection
 	split := strings.Split(block[0], ",")[1:]
 	for _, s := range split {
 		s = strings.TrimSpace(s)
@@ -550,45 +575,47 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		case strings.HasPrefix(s, "MATERIAL"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			f.ShellSection.Property[0].Material = s
+			ss.Property[0].Material = s
 		case strings.HasPrefix(s, "ELSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			f.ShellSection.Elements = s
+			ss.Elements = s
 		case strings.HasPrefix(s, "OFFSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			f.ShellSection.Offset, err = strconv.ParseFloat(s, 64)
+			ss.Offset, err = strconv.ParseFloat(s, 64)
 			if err != nil {
 				return
 			}
 		case s == "":
 			// do nothing
 		case s == "COMPOSITE":
-			f.ShellSection.Composite = true
+			ss.Composite = true
 		default:
 			panic(fmt.Errorf("%s", strings.Join(split, "|")))
 		}
 	}
-	if f.ShellSection.Composite {
+	if ss.Composite {
 		for pos, line := range block[1:] {
 			line = strings.Replace(line, ",", " ", -1)
 			fields := strings.Fields(line)
-			f.ShellSection.Property[pos].Thickness, err = strconv.ParseFloat(fields[0], 64)
+			ss.Property[pos].Thickness, err = strconv.ParseFloat(fields[0], 64)
 			if err != nil {
 				err = fmt.Errorf("%v : %v", block, err)
 				return
 			}
-			f.ShellSection.Property[pos].Material = fields[1]
+			ss.Property[pos].Material = fields[1]
 		}
 	} else {
 		line := strings.TrimSpace(block[1])
-		f.ShellSection.Property[0].Thickness, err = strconv.ParseFloat(line, 64)
+		ss.Property[0].Thickness, err = strconv.ParseFloat(line, 64)
 		if err != nil {
 			err = fmt.Errorf("%v : %v", block, err)
 			return
 		}
 	}
+
+	f.ShellSections = append(f.ShellSections, ss)
 
 	return true, nil
 }
