@@ -217,11 +217,44 @@ func (f Format) String() string {
 		}
 	}
 
+	fmt.Fprintf(&buf, "\n*STEP")
+	if f.Step.Nlgeom {
+		fmt.Fprintf(&buf, ", NLGEOM")
+	}
+	if f.Step.Inc != 0 {
+		fmt.Fprintf(&buf, ", INC=%d", f.Step.Inc)
+	}
+	fmt.Fprintf(&buf, "\n")
+
+	if f.Step.IsStatic {
+		fmt.Fprintf(&buf, "*STATIC\n")
+		if f.Step.Static.TimeInc != 0.0 || f.Step.Static.TimePeriod != 0.0 {
+			fmt.Fprintf(&buf, "%.8e, %.8e\n",
+				f.Step.Static.TimeInc, f.Step.Static.TimePeriod)
+		}
+	}
+
+	if f.Step.Plastic.Hardening != "" {
+		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Step.Plastic.Hardening)
+		for _, d := range f.Step.Plastic.Data {
+			if d.StressVonMises != 0.0 {
+				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
+					d.StressVonMises, d.PlasticStrain, d.Temperature)
+			}
+		}
+	}
+
+	if f.Step.Buckle != 0 {
+		fmt.Fprintf(&buf, "*BUCKLE\n%d\n", f.Step.Buckle)
+	}
+
 	for _, boun := range f.Boundaries {
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
 			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
 		)
 	}
+
+	fmt.Fprintf(&buf, "\n*END STEP\n")
 
 	return buf.String()
 }
@@ -905,7 +938,7 @@ func (f *Format) parsePlastic(block []string) (ok bool, err error) {
 		prefixH := "HARDENING="
 		switch {
 		case strings.HasPrefix(s, prefixH):
-			s = s[len(prefixH)+1:]
+			s = s[len(prefixH):]
 			f.Step.Plastic.Hardening = s
 		default:
 			panic(s)
