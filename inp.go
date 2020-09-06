@@ -62,11 +62,9 @@ type Format struct {
 		ElPrints   []Print
 		Loads      []Load
 		TimePoint  struct {
-			Name      string
-			Generate  bool
-			TimeStart float64
-			TimeEnd   float64
-			TimeInc   float64
+			Name     string
+			Generate bool
+			Time     []float64
 		}
 	}
 }
@@ -252,6 +250,60 @@ func (f Format) String() string {
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
 			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
 		)
+	}
+
+	for _, load := range f.Step.Loads {
+		fmt.Fprintf(&buf, "*CLOAD\n%s, %3d, %.8e\n",
+			load.Position, load.Direction, load.Value)
+	}
+
+	if f.Step.TimePoint.Name != "" {
+		fmt.Fprintf(&buf, "*TIME POINTS, NAME=%s", f.Step.TimePoint.Name)
+		if f.Step.TimePoint.Generate {
+			fmt.Fprintf(&buf, ", GENERATE")
+		}
+		fmt.Fprintf(&buf, "\n")
+		for pos, t := range f.Step.TimePoint.Time {
+			fmt.Fprintf(&buf, "%f ", t)
+			if pos != len(f.Step.TimePoint.Time)-1 {
+				fmt.Fprintf(&buf, ",")
+			}
+		}
+		fmt.Fprintf(&buf, "\n")
+	}
+
+	for _, slice := range []struct {
+		prefix     string
+		prefixName string
+		prints     []Print
+	}{
+		{prefix: "*NODE FILE", prefixName: "NSET", prints: f.Step.NodeFiles},
+		{prefix: "*EL FILE", prefixName: "ELSET", prints: f.Step.ElFiles},
+		{prefix: "*NODE PRINT", prefixName: "NSET", prints: f.Step.NodePrints},
+		{prefix: "*EL PRINT", prefixName: "ELSET", prints: f.Step.ElPrints},
+	} {
+		for _, pr := range slice.prints {
+			fmt.Fprintf(&buf, "%s", slice.prefix)
+			if pr.SetName != "" {
+				fmt.Fprintf(&buf, ", %s=%s", slice.prefixName, pr.SetName)
+			}
+			if pr.Frequency != 0 {
+				fmt.Fprintf(&buf, ", FREQUENCY=%d", pr.Frequency)
+			}
+			if pr.Output != "" {
+				fmt.Fprintf(&buf, ", OUTPUT=%s", pr.Output)
+			}
+			if pr.TimePoints != "" {
+				fmt.Fprintf(&buf, ", TIME POINTS=%s", pr.TimePoints)
+			}
+			if pr.ContactElement {
+				fmt.Fprintf(&buf, ", CONTACT ELEMENT")
+			}
+			if pr.Global {
+				fmt.Fprintf(&buf, ", GLOBAL=YES")
+			}
+			fmt.Fprintf(&buf, "\n%s\n", strings.Join(pr.Options, ", "))
+		}
 	}
 
 	fmt.Fprintf(&buf, "\n*END STEP\n")
@@ -512,7 +564,7 @@ func (f *Format) parseElastic(block []string) (ok bool, err error) {
 	if err != nil {
 		return
 	}
-	f.Material.Elastic.v, err = strconv.ParseFloat(fields[0], 64)
+	f.Material.Elastic.v, err = strconv.ParseFloat(fields[1], 64)
 	if err != nil {
 		return
 	}
@@ -911,19 +963,25 @@ func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
 
 	line := strings.Replace(block[1], ",", " ", -1)
 	fields := strings.Fields(line)
+	var t float64
 
-	f.Step.TimePoint.TimeStart, err = strconv.ParseFloat(fields[0], 64)
+	t, err = strconv.ParseFloat(fields[0], 64)
 	if err != nil {
 		return
 	}
-	f.Step.TimePoint.TimeEnd, err = strconv.ParseFloat(fields[1], 64)
+	f.Step.TimePoint.Time = append(f.Step.TimePoint.Time, t)
+
+	t, err = strconv.ParseFloat(fields[1], 64)
 	if err != nil {
 		return
 	}
-	f.Step.TimePoint.TimeInc, err = strconv.ParseFloat(fields[2], 64)
+	f.Step.TimePoint.Time = append(f.Step.TimePoint.Time, t)
+
+	t, err = strconv.ParseFloat(fields[2], 64)
 	if err != nil {
 		return
 	}
+	f.Step.TimePoint.Time = append(f.Step.TimePoint.Time, t)
 
 	return true, nil
 }
