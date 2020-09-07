@@ -30,7 +30,7 @@ type Format struct {
 		Expansion float64
 		Elastic   struct {
 			E float64
-			v float64
+			V float64
 		}
 	}
 	ShellSections []ShellSection
@@ -99,7 +99,7 @@ func (f Format) String() string {
 	if len(f.Elements) > 0 {
 		addHeader := true
 		for pos, el := range f.Elements {
-			if len(el.Nodes) == 0{
+			if len(el.Nodes) == 0 {
 				continue
 			}
 			if addHeader {
@@ -135,6 +135,9 @@ func (f Format) String() string {
 	if len(f.Nsets) > 0 {
 		addHeader := true
 		for pos, el := range f.Nsets {
+			if len(el.Indexes) == 0 {
+				continue
+			}
 			if addHeader {
 				fmt.Fprintf(&buf, "*NSET")
 				if el.Name != "" {
@@ -162,6 +165,9 @@ func (f Format) String() string {
 	if len(f.Elsets) > 0 {
 		addHeader := true
 		for pos, el := range f.Elsets {
+			if len(el.Indexes) == 0 {
+				continue
+			}
 			if addHeader {
 				fmt.Fprintf(&buf, "*ELSET")
 				if el.Name != "" {
@@ -192,7 +198,7 @@ func (f Format) String() string {
 	if f.Material.Elastic.E != 0.0 {
 		fmt.Fprintf(&buf, "*ELASTIC\n%.8e, %.8e\n",
 			f.Material.Elastic.E,
-			f.Material.Elastic.v,
+			f.Material.Elastic.V,
 		)
 	}
 	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
@@ -298,6 +304,9 @@ func (f Format) String() string {
 			}
 			if pr.Output != "" {
 				fmt.Fprintf(&buf, ", OUTPUT=%s", pr.Output)
+			}
+			if pr.TotalOnly {
+				fmt.Fprintf(&buf, ", TOTALS=ONLY")
 			}
 			if pr.TimePoints != "" {
 				fmt.Fprintf(&buf, ", TIME POINTS=%s", pr.TimePoints)
@@ -570,7 +579,7 @@ func (f *Format) parseElastic(block []string) (ok bool, err error) {
 	if err != nil {
 		return
 	}
-	f.Material.Elastic.v, err = strconv.ParseFloat(fields[1], 64)
+	f.Material.Elastic.V, err = strconv.ParseFloat(fields[1], 64)
 	if err != nil {
 		return
 	}
@@ -781,6 +790,7 @@ type Print struct {
 	Frequency      int
 	Output         string
 	TimePoints     string
+	TotalOnly      bool
 	ContactElement bool
 	Global         bool
 	Options        []string
