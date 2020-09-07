@@ -12,16 +12,16 @@ func Test(t *testing.T) {
 	var files []string
 
 	for _, pattern := range []string{
-		"beam8b",
-		"beamb",
-		"beamlin",
-		"beammix",
-		"beammpc",
-		"beammr",
-		"concrete",
-		"platestress",
-		"shellbeam",
-		"solidshell",
+		// "beam8b",
+		// "beamb",
+		// "beamlin",
+		// "beammix",
+		// "beammpc",
+		// "beammr",
+		// "concrete",
+		// "platestress",
+		// "shellbeam",
+		// "solidshell",
 	} {
 		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
 		if err != nil {
@@ -57,21 +57,3 @@ func Test(t *testing.T) {
 		})
 	}
 }
-
-// func Example() {
-// 	for _, file := range []string{} {
-// 		fmt.Fprintf(os.Stdout, "\nfilename: %s\n", file)
-// 		content, err := ioutil.ReadFile(file)
-// 		if err != nil {
-// 			fmt.Fprintf(os.Stdout, "%v\n", err)
-// 			return
-// 		}
-// 		f, err := inp.Parse(content)
-// 		if err != nil {
-// 			fmt.Fprintf(os.Stdout, "%v\n", err)
-// 			return
-// 		}
-// 		fmt.Fprintf(os.Stdout, "%s", f.String())
-// 	}
-// 	// Output:
-// }
