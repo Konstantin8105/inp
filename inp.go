@@ -202,6 +202,9 @@ func (f Format) String() string {
 		fmt.Fprintf(&buf, "*SHELL SECTION")
 		fmt.Fprintf(&buf, ", ELSET=%s", ss.Elements)
 		fmt.Fprintf(&buf, ", OFFSET=%f", ss.Offset)
+		if ss.NodalThickness {
+			fmt.Fprintf(&buf, ", NODAL THICKNESS")
+		}
 		if ss.Composite {
 			fmt.Fprintf(&buf, ", COMPOSITE")
 			fmt.Fprintf(&buf, "\n")
@@ -637,10 +640,11 @@ func (f *Format) parseBoundary(block []string) (ok bool, err error) {
 }
 
 type ShellSection struct {
-	Elements  string
-	Offset    float64
-	Composite bool
-	Property  [12]struct {
+	Elements       string
+	Offset         float64
+	Composite      bool
+	NodalThickness bool
+	Property       [12]struct {
 		Thickness float64
 		Material  string
 	}
@@ -672,6 +676,8 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 			if err != nil {
 				return
 			}
+		case strings.HasPrefix(s, "NODAL THICKNESS"):
+			ss.NodalThickness = true
 		case s == "":
 			// do nothing
 		case s == "COMPOSITE":
@@ -844,12 +850,17 @@ func (f *Format) parsePrint(block []string, prefix string, pr *[]Print) (ok bool
 				return
 			}
 			np.Frequency = int(i64)
+		case strings.HasPrefix(s, "OUTPUT"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			np.Output = s
 		default:
 			panic(s)
 		}
 	}
-	np.Options = strings.Fields(strings.Replace(block[1], ",", " ", -1))
-
+	if len(block) == 2 {
+		np.Options = strings.Fields(strings.Replace(block[1], ",", " ", -1))
+	}
 	(*pr) = append((*pr), np)
 
 	return true, nil
@@ -1068,7 +1079,7 @@ func Parse(content []byte) (f *Format, err error) {
 			}
 		}
 		if 1 < counter {
-			panic("counter *STEP is not support")
+			panic(fmt.Errorf("counter *STEP is not support: %d", counter))
 		}
 	}
 

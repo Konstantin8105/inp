@@ -1,9 +1,7 @@
 package inp_test
 
 import (
-	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,16 +12,16 @@ func Test(t *testing.T) {
 	var files []string
 
 	for _, pattern := range []string{
-		//"beamlin",
-		//"beammix",
-		//"beammpc",
-		//"beammr",
-		"beammnh",
-		"beammld",
-		//"shellbeam",
-		// "shell",
-		// "concrete",
-		//"solidshell",
+		"beam8b",
+		"beamb",
+		"beamlin",
+		"beammix",
+		"beammpc",
+		"beammr",
+		"concrete",
+		"platestress",
+		"shellbeam",
+		"solidshell",
 	} {
 		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
 		if err != nil {
@@ -31,6 +29,7 @@ func Test(t *testing.T) {
 		}
 		files = append(files, fs...)
 	}
+
 	files = append(files, []string{
 		"./convertorInp/Example/shell.inp",
 		"./convertorInp/Example/shell2.inp",
@@ -47,11 +46,16 @@ func Test(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_ = format
-			fmt.Fprintf(os.Stdout, "%s", format.String())
+			format2, err := inp.Parse([]byte(format.String()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if format.String() != format2.String() {
+				t.Fatalf("not same")
+			}
+			// fmt.Fprintf(os.Stdout, "%s", format.String())
 		})
 	}
-
 }
 
 // func Example() {
