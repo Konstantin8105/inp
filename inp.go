@@ -99,6 +99,9 @@ func (f Format) String() string {
 	if len(f.Elements) > 0 {
 		addHeader := true
 		for pos, el := range f.Elements {
+			if len(el.Nodes) == 0{
+				continue
+			}
 			if addHeader {
 				fmt.Fprintf(&buf, "*ELEMENT")
 				if el.Type != "" {
