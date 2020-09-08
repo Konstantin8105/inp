@@ -1204,7 +1204,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 			panic(line)
 		}
 		var factor float64
-		factor, err = strconv.ParseFloat(fields[0], 64)
+		factor, err = strconv.ParseFloat(fields[1], 64)
 		if err != nil {
 			return
 		}
