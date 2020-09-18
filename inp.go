@@ -201,6 +201,15 @@ func (f Format) String() string {
 			f.Material.Elastic.V,
 		)
 	}
+	if f.Step.Plastic.Hardening != "" {
+		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Step.Plastic.Hardening)
+		for _, d := range f.Step.Plastic.Data {
+			if d.StressVonMises != 0.0 {
+				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
+					d.StressVonMises, d.PlasticStrain, d.Temperature)
+			}
+		}
+	}
 	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
 	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
 
@@ -227,6 +236,30 @@ func (f Format) String() string {
 		}
 	}
 
+	if f.Step.TimePoint.Name != "" {
+		fmt.Fprintf(&buf, "*TIME POINTS, NAME=%s", f.Step.TimePoint.Name)
+		if f.Step.TimePoint.Generate {
+			fmt.Fprintf(&buf, ", GENERATE")
+		}
+		fmt.Fprintf(&buf, "\n")
+		for pos, t := range f.Step.TimePoint.Time {
+			fmt.Fprintf(&buf, "%f ", t)
+			if pos != len(f.Step.TimePoint.Time)-1 {
+				fmt.Fprintf(&buf, ",")
+			}
+		}
+		fmt.Fprintf(&buf, "\n")
+	}
+
+	for _, boun := range f.Boundaries {
+		if boun.Factor != 0.0 {
+			continue
+		}
+		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
+			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
+		)
+	}
+
 	fmt.Fprintf(&buf, "\n*STEP")
 	if f.Step.Nlgeom {
 		fmt.Fprintf(&buf, ", NLGEOM")
@@ -244,21 +277,15 @@ func (f Format) String() string {
 		}
 	}
 
-	if f.Step.Plastic.Hardening != "" {
-		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Step.Plastic.Hardening)
-		for _, d := range f.Step.Plastic.Data {
-			if d.StressVonMises != 0.0 {
-				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
-					d.StressVonMises, d.PlasticStrain, d.Temperature)
-			}
-		}
-	}
 
 	if f.Step.Buckle != 0 {
 		fmt.Fprintf(&buf, "*BUCKLE\n%d\n", f.Step.Buckle)
 	}
 
 	for _, boun := range f.Boundaries {
+		if boun.Factor != 0.0 {
+			continue
+		}
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
 			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
 		)
@@ -267,21 +294,6 @@ func (f Format) String() string {
 	for _, load := range f.Step.Loads {
 		fmt.Fprintf(&buf, "*CLOAD\n%s, %3d, %.8e\n",
 			load.Position, load.Direction, load.Value)
-	}
-
-	if f.Step.TimePoint.Name != "" {
-		fmt.Fprintf(&buf, "*TIME POINTS, NAME=%s", f.Step.TimePoint.Name)
-		if f.Step.TimePoint.Generate {
-			fmt.Fprintf(&buf, ", GENERATE")
-		}
-		fmt.Fprintf(&buf, "\n")
-		for pos, t := range f.Step.TimePoint.Time {
-			fmt.Fprintf(&buf, "%f ", t)
-			if pos != len(f.Step.TimePoint.Time)-1 {
-				fmt.Fprintf(&buf, ",")
-			}
-		}
-		fmt.Fprintf(&buf, "\n")
 	}
 
 	for _, slice := range []struct {
@@ -1179,6 +1191,69 @@ func Parse(content []byte) (f *Format, err error) {
 	}
 
 	return f, nil
+}
+
+type Buckle struct {
+	Factor        float64
+	Displacements []Node
+}
+
+type Frd struct {
+	Nodes   []Node
+	Buckles []Buckle
+}
+
+//
+//     2C                          5418                                     1
+//  -1         1 6.00000E+00 0.00000E+00 0.00000E+00
+//  -1         2 5.99980E+00 4.83855E-02 0.00000E+00
+//  -1         3 3.00000E+00 5.19615E+00 0.00000E+00
+//  -1         4-2.95800E+00 5.22018E+00 0.00000E+00
+//  -1         5-3.00000E+00 5.19615E+00 0.00000E+00
+//
+//     1PSTEP                         1           1           1
+//   100CL  101 0.00000E+00        5418                     4    1           1
+//  -4  DISP        4    1
+//
+//     1PSTEP                         2           1           1
+//   100CL  102 536.3893407        5418                     4    2           1
+//  -4  DISP        4    1
+//  -5  D1          1    2    1    0
+//  -5  D2          1    2    2    0
+//  -5  D3          1    2    3    0
+//  -5  ALL         1    2    0    0    1ALL
+//  -1         1 0.00000E+00 0.00000E+00 0.00000E+00
+//  -1         2 0.00000E+00 0.00000E+00 0.00000E+00
+//  -1      7586-1.51592E-05 9.16009E-06 3.94705E-08
+//  -1      7588-3.28491E-05 1.94252E-05-1.75749E-08
+//
+func ParseFrd(content []byte) (frd *Frd, err error) {
+	frd = new(Frd)
+
+	lines := strings.Split(string(content), "\n")
+	for i := range lines {
+		line := strings.TrimSpace(lines[i])
+		if !strings.Contains(line, "1PSTEP") {
+			continue
+		}
+		i++
+		line = strings.TrimSpace(lines[i])
+		fields := strings.Fields(line)
+
+		var factor float64
+		factor, err = strconv.ParseFloat(fields[2], 64)
+		if err != nil {
+			return
+		}
+		if factor == 0 {
+			continue
+		}
+
+		frd.Buckles = append(frd.Buckles, Buckle{Factor: factor})
+	}
+	// sort buckle
+
+	return
 }
 
 // ParseBucklingFactor in file for example `shell2.dat` and return
