@@ -14,7 +14,7 @@ func Test(t *testing.T) {
 
 	for _, pattern := range []string{
 		"beam8b",
-		// "beamb",
+		"beamb",
 		// "beamlin",
 		// "beammix",
 		// "beammpc",
