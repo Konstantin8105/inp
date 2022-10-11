@@ -41,6 +41,7 @@ type Format struct {
 			Temperature    float64
 		}
 	}
+	SolidSections []SolidSection
 	ShellSections []ShellSection
 	Boundaries    []Boundary
 	Steps         []Step
@@ -65,7 +66,10 @@ type Step struct {
 
 	Boundaries []Boundary
 
-	Buckle     int
+	Buckle struct {
+		Number   int     // Number of buckling factors desired (usually 1)
+		Accuracy float64 // Accuracy desired (default: 0.01).
+	}
 	NodeFiles  []Print
 	ElFiles    []Print
 	NodePrints []Print
@@ -93,8 +97,13 @@ func (s Step) String() string {
 		}
 	}
 
-	if s.Buckle != 0 {
-		fmt.Fprintf(&buf, "*BUCKLE\n%d\n", s.Buckle)
+	if 0 < s.Buckle.Number {
+		fmt.Fprintf(&buf, "*BUCKLE\n")
+		if s.Buckle.Accuracy == 0 {
+			fmt.Fprintf(&buf, "%d\n", s.Buckle.Number)
+		} else {
+			fmt.Fprintf(&buf, "%d,%.12e\n", s.Buckle.Number, s.Buckle.Accuracy)
+		}
 	}
 
 	for _, load := range s.Loads {
@@ -670,6 +679,53 @@ func parseBoundary(bs *[]Boundary) func(block []string) (ok bool, err error) {
 	}
 }
 
+// *SOLID SECTION,ELSET=EALL,MATERIAL=HY
+type SolidSection struct {
+	Elements string
+	Offset   float64
+	Material string
+}
+
+func (f *Format) parseSolidSection(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*SOLID SECTION") {
+		return false, nil
+	}
+	var ss SolidSection
+	split := fields(block[0])[1:]
+	for _, s := range split {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "MATERIAL"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			ss.Material = s
+		case strings.HasPrefix(s, "ELSET"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			ss.Elements = s
+		case strings.HasPrefix(s, "OFFSET"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			ss.Offset, err = strconv.ParseFloat(s, 64)
+			if err != nil {
+				return
+			}
+		case s == "":
+			// do nothing
+		default:
+			panic(fmt.Errorf("%s", strings.Join(split, "|")))
+		}
+	}
+	block = block[1:]
+	if 0 < len(block) {
+		err = fmt.Errorf("other lines: %s", strings.Join(block, "\n"))
+	}
+
+	f.SolidSections = append(f.SolidSections, ss)
+
+	return true, nil
+}
+
 type ShellSection struct {
 	Elements       string
 	Offset         float64
@@ -688,7 +744,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		return false, nil
 	}
 	var ss ShellSection
-	split := strings.Split(block[0], ",")[1:]
+	split := fields(block[0])[1:]
 	for _, s := range split {
 		s = strings.TrimSpace(s)
 		switch {
@@ -844,14 +900,21 @@ func (s *Step) parseBuckle(block []string) (ok bool, err error) {
 		err = fmt.Errorf("multiline block: %s", strings.Join(block, "\n"))
 		return
 	}
-	part := strings.TrimSpace(block[1])
+	fs := fields(block[1])
 	var i64 int64
-	i64, err = strconv.ParseInt(part, 10, 64)
+	i64, err = strconv.ParseInt(fs[0], 10, 64)
 	if err != nil {
 		return
 	}
-	s.Buckle = int(i64)
-
+	s.Buckle.Number = int(i64)
+	if 1 < len(fs) {
+		var acc float64
+		acc, err = strconv.ParseFloat(fs[1], 64)
+		if err != nil {
+			return
+		}
+		s.Buckle.Accuracy = acc
+	}
 	return true, nil
 }
 
@@ -1235,6 +1298,7 @@ func Parse(content []byte) (f *Format, err error) {
 			parseBoundary(&f.Boundaries),
 			f.parseMaterial,
 			ignore("*SURFACE"),
+			f.parseSolidSection,
 			f.parseShellSection,
 			f.parseStep,
 			f.parsePlastic,
