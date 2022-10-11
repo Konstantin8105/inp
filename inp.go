@@ -476,9 +476,8 @@ func (f *Format) parseElement(block []string) (ok bool, err error) {
 
 	var Type, Elset string
 	{
-		block[0] = strings.Replace(block[0], ",", " ", -1)
-		fields := strings.Fields(block[0])
-		for _, f := range fields {
+		fs := fields(block[0])
+		for _, f := range fs {
 			if strings.HasPrefix(f, "TYPE=") {
 				Type = f[5:]
 			}
@@ -489,10 +488,12 @@ func (f *Format) parseElement(block []string) (ok bool, err error) {
 	}
 
 	for _, line := range block[1:] {
-		line = strings.Replace(line, ",", " ", -1)
-		fields := strings.Fields(line)
+		fs := fields(line)
 		var ints []int
-		for _, f := range fields {
+		for _, f := range fs {
+			if f == "" {
+				continue
+			}
 			var i64 int64
 			i64, err = strconv.ParseInt(f, 10, 64)
 			if err != nil {
