@@ -277,19 +277,19 @@ func (f Format) String() string {
 		}
 	}
 
-
 	if f.Step.Buckle != 0 {
 		fmt.Fprintf(&buf, "*BUCKLE\n%d\n", f.Step.Buckle)
 	}
 
-	for _, boun := range f.Boundaries {
-		if boun.Factor != 0.0 {
-			continue
-		}
-		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
-			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
-		)
-	}
+	// Dublicate
+	// 	for _, boun := range f.Boundaries {
+	// 		if boun.Factor != 0.0 {
+	// 			continue
+	// 		}
+	// 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
+	// 			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
+	// 		)
+	// 	}
 
 	for _, load := range f.Step.Loads {
 		fmt.Fprintf(&buf, "*CLOAD\n%s, %3d, %.8e\n",

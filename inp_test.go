@@ -2,6 +2,7 @@ package inp_test
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -50,7 +51,17 @@ func Test(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if format.String() != format2.String() {
+			format3, err := inp.Parse([]byte(format2.String()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			f1 := format.String()
+			f2 := format2.String()
+			f3 := format3.String()
+			if f1 != f2 {
+				_ = os.WriteFile("f1.out", []byte(f1), 0644)
+				_ = os.WriteFile("f2.out", []byte(f2), 0644)
+				_ = os.WriteFile("f3.out", []byte(f3), 0644)
 				t.Fatalf("not same")
 			}
 			// fmt.Fprintf(os.Stdout, "%s", format.String())
