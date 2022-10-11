@@ -34,8 +34,7 @@ func Test(t *testing.T) {
 		"./convertorInp/Example/shell.inp",
 		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
-		".test/beampl.inp",
-		".test/beamcr.inp",
+		// ".test/beampiso.inp",
 	}...)
 
 	for _, f := range files {
@@ -64,6 +63,9 @@ func Test(t *testing.T) {
 				_ = os.WriteFile("f2.out", []byte(f2), 0644)
 				_ = os.WriteFile("f3.out", []byte(f3), 0644)
 				t.Fatalf("not same")
+			}
+			if testing.Verbose() {
+				t.Logf("%s", f3)
 			}
 			// fmt.Fprintf(os.Stdout, "%s", format.String())
 		})
