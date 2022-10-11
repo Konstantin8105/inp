@@ -3,7 +3,6 @@ package inp_test
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/Konstantin8105/inp"
@@ -12,29 +11,31 @@ import (
 func Test(t *testing.T) {
 	var files []string
 
-	for _, pattern := range []string{
-		// "beam8b",
-		// "beamb",
-		// "beamlin",
-		// "beammix",
-		// "beammpc",
-		// "beammr",
-		// "concrete",
-		// "platestress",
-		// "shellbeam",
-		// "solidshell",
-	} {
-		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
-		if err != nil {
-			t.Fatal(err)
-		}
-		files = append(files, fs...)
-	}
+	//	for _, pattern := range []string{
+	//		"beam8b",
+	//		"beamb",
+	//		"beamlin",
+	//		"beammix",
+	//		"beammpc",
+	//		"beammr",
+	//		"concrete",
+	//		"platestress",
+	//		"shellbeam",
+	//		"solidshell",
+	//	} {
+	//		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
+	//		if err != nil {
+	//			t.Fatal(err)
+	//		}
+	//		files = append(files, fs...)
+	//	}
 
 	files = append(files, []string{
 		"./convertorInp/Example/shell.inp",
 		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
+		".test/beampl.inp",
+		".test/beamcr.inp",
 	}...)
 
 	for _, f := range files {
