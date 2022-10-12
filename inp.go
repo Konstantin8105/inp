@@ -32,13 +32,13 @@ type Format struct {
 			E float64
 			V float64
 		}
-	}
-	Plastic struct {
-		Hardening string
-		Data      [10]struct {
-			StressVonMises float64
-			PlasticStrain  float64
-			Temperature    float64
+		Plastic struct {
+			Hardening string
+			Data      [10]struct {
+				StressVonMises float64
+				PlasticStrain  float64
+				Temperature    float64
+			}
 		}
 	}
 	SolidSections []SolidSection
@@ -285,9 +285,9 @@ func (f Format) String() string {
 			f.Material.Elastic.V,
 		)
 	}
-	if f.Plastic.Hardening != "" {
-		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Plastic.Hardening)
-		for _, d := range f.Plastic.Data {
+	if f.Material.Plastic.Hardening != "" {
+		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Material.Plastic.Hardening)
+		for _, d := range f.Material.Plastic.Data {
 			if d.StressVonMises != 0.0 {
 				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
 					d.StressVonMises, d.PlasticStrain, d.Temperature)
@@ -1160,7 +1160,7 @@ func (f *Format) parsePlastic(block []string) (ok bool, err error) {
 		switch {
 		case strings.HasPrefix(s, prefixH):
 			s = s[len(prefixH):]
-			f.Plastic.Hardening = s
+			f.Material.Plastic.Hardening = s
 		default:
 			panic(s)
 		}
@@ -1170,18 +1170,18 @@ func (f *Format) parsePlastic(block []string) (ok bool, err error) {
 		line = strings.Replace(line, ",", " ", -1)
 		fields := strings.Fields(line)
 
-		f.Plastic.Data[pos].StressVonMises, err = strconv.ParseFloat(fields[0], 64)
+		f.Material.Plastic.Data[pos].StressVonMises, err = strconv.ParseFloat(fields[0], 64)
 		if err != nil {
 			return
 		}
-		f.Plastic.Data[pos].PlasticStrain, err = strconv.ParseFloat(fields[1], 64)
+		f.Material.Plastic.Data[pos].PlasticStrain, err = strconv.ParseFloat(fields[1], 64)
 		if err != nil {
 			return
 		}
 		if len(fields) == 2 {
 			continue
 		}
-		f.Plastic.Data[pos].Temperature, err = strconv.ParseFloat(fields[2], 64)
+		f.Material.Plastic.Data[pos].Temperature, err = strconv.ParseFloat(fields[2], 64)
 		if err != nil {
 			return
 		}
