@@ -284,7 +284,7 @@ func (f Format) String() string {
 		fmt.Fprintf(&buf, "%s\n", f.Steps[i].String())
 	}
 
-	return buf.String()
+	return strings.ToUpper(buf.String())
 }
 
 // isHeader return true for example:
