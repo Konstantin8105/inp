@@ -450,6 +450,7 @@ func (f *Format) parseElement(block []string) (ok bool, err error) {
 type Set struct {
 	Name     string
 	Generate bool
+	Addition []string
 	Indexes  []int
 	Names    []string
 }
@@ -478,13 +479,13 @@ func writeSet(out io.Writer, name string, sets []Set) {
 			if el.Generate {
 				fmt.Fprintf(out, ", GENERATE")
 			}
-			fmt.Fprintf(out, "\n")
+			fmt.Fprintf(out, "%s\n", strings.Join(el.Addition, ","))
 			addHeader = false
 		}
 		for _, ind := range el.Indexes {
 			fmt.Fprintf(out, "%5d,\n", ind)
 		}
-		for _, ind := range el.Names{
+		for _, ind := range el.Names {
 			fmt.Fprintf(out, "%s ,\n", ind)
 		}
 		if pos != len(sets)-1 {
