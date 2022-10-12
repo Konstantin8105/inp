@@ -87,6 +87,8 @@ func (s Step) String() string {
 	fmt.Fprintf(&buf, "\n*STEP")
 	if s.Nlgeom {
 		fmt.Fprintf(&buf, ", NLGEOM")
+	} else {
+		fmt.Fprintf(&buf, ", NLGEOM=NO")
 	}
 	if s.Inc != 0 {
 		fmt.Fprintf(&buf, ", INC=%d", s.Inc)
@@ -938,8 +940,20 @@ func (f *Format) parseStep(block []string) (ok bool, err error) {
 		fs := fields(block[0])[1:]
 		for _, part := range fs {
 			switch {
-			case part == "NLGEOM":
-				s.Nlgeom = true
+			case strings.Contains(part, "NLGEOM"):
+				part = strings.ReplaceAll(part, "NLGEOM", "")
+				part = strings.ReplaceAll(part, "=", "")
+				part = strings.TrimSpace(part)
+				switch part {
+				case "":
+					s.Nlgeom = true
+				case "NO":
+					s.Nlgeom = false
+				default:
+					err = fmt.Errorf("not valid NLGEOM: %v", part)
+					return
+				}
+
 			case strings.HasPrefix(part, "INC="):
 				part = part[4:]
 				var i64 int64
@@ -1338,7 +1352,9 @@ func ignore(prefix string) func(block []string) (ok bool, err error) {
 func blockParser(block []string, parsers []func(block []string) (ok bool, err error)) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%s", string(debug.Stack()))
+			err = fmt.Errorf("%s\n%s",
+				strings.Join(block, "\n"),
+				string(debug.Stack()))
 		}
 	}()
 	if len(block) == 0 {
