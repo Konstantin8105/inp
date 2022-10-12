@@ -429,7 +429,7 @@ func (f *Format) parseNode(block []string) (ok bool, err error) {
 			return
 		}
 		for i := 0; i < 3; i++ {
-			coord[i], err = strconv.ParseFloat(fields[i+1], 64)
+			coord[i], err = parseFloat(fields[i+1])
 			if err != nil {
 				return
 			}
@@ -558,7 +558,7 @@ func (f *Format) parseDensity(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
 	}
-	f.Material.Density, err = strconv.ParseFloat(block[1], 64)
+	f.Material.Density, err = parseFloat(block[1])
 	if err != nil {
 		return
 	}
@@ -569,7 +569,7 @@ func (f *Format) parseExpansion(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
-	f.Material.Expansion, err = strconv.ParseFloat(block[1], 64)
+	f.Material.Expansion, err = parseFloat(block[1])
 	if err != nil {
 		return
 	}
@@ -602,11 +602,11 @@ func (f *Format) parseElastic(block []string) (ok bool, err error) {
 	}
 	line := strings.Replace(block[1], ",", " ", -1)
 	fields := strings.Fields(line)
-	f.Material.Elastic.E, err = strconv.ParseFloat(fields[0], 64)
+	f.Material.Elastic.E, err = parseFloat(fields[0])
 	if err != nil {
 		return
 	}
-	f.Material.Elastic.V, err = strconv.ParseFloat(fields[1], 64)
+	f.Material.Elastic.V, err = parseFloat(fields[1])
 	if err != nil {
 		return
 	}
@@ -668,7 +668,7 @@ func parseBoundary(bs *[]Boundary) func(block []string) (ok bool, err error) {
 			}
 
 			if len(fields) > 3 {
-				b.Factor, err = strconv.ParseFloat(fields[3], 64)
+				b.Factor, err = parseFloat(fields[3])
 				if err != nil {
 					return
 				}
@@ -802,16 +802,16 @@ func (f *Format) parseBeamSection(block []string) (ok bool, err error) {
 	}
 	for i, s := range fields(block[1]) {
 		var v float64
-		v, err = strconv.ParseFloat(s, 64)
-		if  err !=nil {
+		v, err = parseFloat(s)
+		if err != nil {
 			return
 		}
 		b.Thks[i] = v
 	}
 	for i, s := range fields(block[2]) {
 		var v float64
-		v, err = strconv.ParseFloat(s, 64)
-		if  err !=nil {
+		v, err = parseFloat(s)
+		if err != nil {
 			return
 		}
 		b.Vector[i] = v
@@ -876,7 +876,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		case strings.HasPrefix(s, "OFFSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			ss.Offset, err = strconv.ParseFloat(s, 64)
+			ss.Offset, err = parseFloat(s)
 			if err != nil {
 				return
 			}
@@ -894,7 +894,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		for pos, line := range block[1:] {
 			line = strings.Replace(line, ",", " ", -1)
 			fields := strings.Fields(line)
-			ss.Property[pos].Thickness, err = strconv.ParseFloat(fields[0], 64)
+			ss.Property[pos].Thickness, err = parseFloat(fields[0])
 			if err != nil {
 				err = fmt.Errorf("%v : %v", block, err)
 				return
@@ -903,7 +903,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		}
 	} else {
 		line := strings.TrimSpace(block[1])
-		ss.Property[0].Thickness, err = strconv.ParseFloat(line, 64)
+		ss.Property[0].Thickness, err = parseFloat(line)
 		if err != nil {
 			err = fmt.Errorf("%v : %v", block, err)
 			return
@@ -1026,7 +1026,7 @@ func (s *Step) parseBuckle(block []string) (ok bool, err error) {
 	s.Buckle.Number = int(i64)
 	if 1 < len(fs) {
 		var acc float64
-		acc, err = strconv.ParseFloat(fs[1], 64)
+		acc, err = parseFloat(fs[1])
 		if err != nil {
 			return
 		}
@@ -1122,7 +1122,8 @@ func (s *Step) parsePrint(block []string, prefix string, pr *[]Print) (ok bool, 
 			s = strings.TrimSpace(s[index+1:])
 			np.Output = s
 		default:
-			panic(s)
+			err = fmt.Errorf("parsePrint cannot parse: `%s`", s)
+			return
 		}
 	}
 	if len(block) == 2 {
@@ -1167,13 +1168,13 @@ func (s *Step) parseStatic(block []string) (ok bool, err error) {
 		panic(block)
 	}
 
-	s.Static.TimeInc, err = strconv.ParseFloat(fields[0], 64)
+	s.Static.TimeInc, err = parseFloat(fields[0])
 	if err != nil {
 		err = fmt.Errorf("%v : %v", block, err)
 		return
 	}
 
-	s.Static.TimePeriod, err = strconv.ParseFloat(fields[1], 64)
+	s.Static.TimePeriod, err = parseFloat(fields[1])
 	if err != nil {
 		err = fmt.Errorf("%v : %v", block, err)
 		return
@@ -1216,7 +1217,7 @@ func (s *Step) parseCload(block []string) (ok bool, err error) {
 		}
 		l.Direction = int(i64)
 
-		l.Value, err = strconv.ParseFloat(fields[2], 64)
+		l.Value, err = parseFloat(fields[2])
 		if err != nil {
 			return
 		}
@@ -1274,19 +1275,19 @@ func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
 	fields := strings.Fields(line)
 	var t float64
 
-	t, err = strconv.ParseFloat(fields[0], 64)
+	t, err = parseFloat(fields[0])
 	if err != nil {
 		return
 	}
 	f.TimePoint.Time = append(f.TimePoint.Time, t)
 
-	t, err = strconv.ParseFloat(fields[1], 64)
+	t, err = parseFloat(fields[1])
 	if err != nil {
 		return
 	}
 	f.TimePoint.Time = append(f.TimePoint.Time, t)
 
-	t, err = strconv.ParseFloat(fields[2], 64)
+	t, err = parseFloat(fields[2])
 	if err != nil {
 		return
 	}
@@ -1316,18 +1317,18 @@ func (f *Format) parsePlastic(block []string) (ok bool, err error) {
 		line = strings.Replace(line, ",", " ", -1)
 		fields := strings.Fields(line)
 
-		f.Material.Plastic.Data[pos].StressVonMises, err = strconv.ParseFloat(fields[0], 64)
+		f.Material.Plastic.Data[pos].StressVonMises, err = parseFloat(fields[0])
 		if err != nil {
 			return
 		}
-		f.Material.Plastic.Data[pos].PlasticStrain, err = strconv.ParseFloat(fields[1], 64)
+		f.Material.Plastic.Data[pos].PlasticStrain, err = parseFloat(fields[1])
 		if err != nil {
 			return
 		}
 		if len(fields) == 2 {
 			continue
 		}
-		f.Material.Plastic.Data[pos].Temperature, err = strconv.ParseFloat(fields[2], 64)
+		f.Material.Plastic.Data[pos].Temperature, err = parseFloat(fields[2])
 		if err != nil {
 			return
 		}
@@ -1522,7 +1523,7 @@ func ParseFrd(content []byte) (frd *Frd, err error) {
 		fields := strings.Fields(line)
 
 		var factor float64
-		factor, err = strconv.ParseFloat(fields[2], 64)
+		factor, err = parseFloat(fields[2])
 		if err != nil {
 			return
 		}
@@ -1560,7 +1561,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 			panic(line)
 		}
 		var factor float64
-		factor, err = strconv.ParseFloat(fields[1], 64)
+		factor, err = parseFloat(fields[1])
 		if err != nil {
 			return
 		}
@@ -2546,7 +2547,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 			line = line[len(headerPrefix):]
 // 			s := strings.Split(line, headerMiddle)
 // 			support.NodeName = strings.TrimSpace(s[0])
-// 			time, err := strconv.ParseFloat(strings.TrimSpace(s[1]), 64)
+// 			time, err := parseFloat(strings.TrimSpace(s[1]), 64)
 // 			if err != nil {
 // 				return supportForces, fmt.Errorf("line = %v\nerr=%v", line, err)
 // 			}
@@ -2592,7 +2593,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 			if len(s[index]) == 0 {
 // 				continue
 // 			}
-// 			factor, err := strconv.ParseFloat(s[index], 64)
+// 			factor, err := parseFloat(s[index], 64)
 // 			if err != nil {
 // 				return force, fmt.Errorf("Error: string parts - %v, error - %v, in line - %v", s, err, line)
 // 			}
@@ -2640,5 +2641,12 @@ func fields(str string) (fs []string) {
 	for i := range fs {
 		fs[i] = strings.TrimSpace(fs[i])
 	}
+	return
+}
+
+func parseFloat(str string) (v float64, err error) {
+	str = strings.TrimSpace(str)
+	str = strings.ReplaceAll(str, "D", "e")
+	v, err = strconv.ParseFloat(str, 64)
 	return
 }

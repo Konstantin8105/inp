@@ -15,14 +15,16 @@ func Test(t *testing.T) {
 	for _, pattern := range []string{
 		"beam8b",
 		"beamb",
-		// "beamlin",
+		"beamlin",
 		// "beammix",
 		// "beammpc",
 		// "beammr",
 		// "concrete",
 		"platestress",
-		// "shellbeam",
-		// "solidshell",
+		"shellbeam",
+		"solidshell",
+		// "simplebeam",
+		// "shell3",
 	} {
 		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
 		if err != nil {
@@ -36,7 +38,6 @@ func Test(t *testing.T) {
 		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
 		".test/beampiso.inp",
-		".test/shellbeam.inp",
 	}...)
 
 	for _, f := range files {
