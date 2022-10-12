@@ -11,6 +11,7 @@ package inp
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -221,66 +222,9 @@ func (f Format) String() string {
 			}
 		}
 	}
-	if len(f.Nsets) > 0 {
-		addHeader := true
-		for pos, el := range f.Nsets {
-			if len(el.Indexes) == 0 {
-				continue
-			}
-			if addHeader {
-				fmt.Fprintf(&buf, "*NSET")
-				if el.Name != "" {
-					fmt.Fprintf(&buf, ", NSET=%s", el.Name)
-				}
-				if el.Generate {
-					fmt.Fprintf(&buf, ", GENERATE")
-				}
-				fmt.Fprintf(&buf, "\n")
-				addHeader = false
-			}
-			for _, ind := range el.Indexes {
-				fmt.Fprintf(&buf, "%5d,\n", ind)
-			}
-			if pos != len(f.Nsets)-1 {
-				if f.Nsets[pos].Name != f.Nsets[pos+1].Name {
-					addHeader = true
-				}
-				if f.Nsets[pos].Generate != f.Nsets[pos+1].Generate {
-					addHeader = true
-				}
-			}
-		}
-	}
-	if len(f.Elsets) > 0 {
-		addHeader := true
-		for pos, el := range f.Elsets {
-			if len(el.Indexes) == 0 {
-				continue
-			}
-			if addHeader {
-				fmt.Fprintf(&buf, "*ELSET")
-				if el.Name != "" {
-					fmt.Fprintf(&buf, ", ELSET=%s", el.Name)
-				}
-				if el.Generate {
-					fmt.Fprintf(&buf, ", GENERATE")
-				}
-				fmt.Fprintf(&buf, "\n")
-				addHeader = false
-			}
-			for _, ind := range el.Indexes {
-				fmt.Fprintf(&buf, "%5d,\n", ind)
-			}
-			if pos != len(f.Elsets)-1 {
-				if f.Elsets[pos].Name != f.Elsets[pos+1].Name {
-					addHeader = true
-				}
-				if f.Elsets[pos].Generate != f.Elsets[pos+1].Generate {
-					addHeader = true
-				}
-			}
-		}
-	}
+	writeSet(&buf, "NSET", f.Nsets)
+	writeSet(&buf, "ELSET", f.Elsets)
+
 	if f.Material.Name != "" {
 		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", f.Material.Name)
 	}
@@ -508,6 +452,50 @@ type Set struct {
 	Generate bool
 	Indexes  []int
 	Names    []string
+}
+
+func writeSet(out io.Writer, name string, sets []Set) {
+	if len(sets) == 0 {
+		return
+	}
+	addHeader := true
+	for pos, el := range sets {
+		if len(el.Indexes) == 0 && len(el.Names) == 0 {
+			continue
+		}
+		if addHeader {
+			fmt.Fprintf(out, "*%s", name)
+			if el.Name != "" {
+				switch name {
+				case "ELSET":
+					fmt.Fprintf(out, ", ELSET=%s", el.Name)
+				case "NSET":
+					fmt.Fprintf(out, ", NSET=%s", el.Name)
+				default:
+					panic(fmt.Errorf("not implemented: %s", name))
+				}
+			}
+			if el.Generate {
+				fmt.Fprintf(out, ", GENERATE")
+			}
+			fmt.Fprintf(out, "\n")
+			addHeader = false
+		}
+		for _, ind := range el.Indexes {
+			fmt.Fprintf(out, "%5d,\n", ind)
+		}
+		for _, ind := range el.Names{
+			fmt.Fprintf(out, "%s ,\n", ind)
+		}
+		if pos != len(sets)-1 {
+			if sets[pos].Name != sets[pos+1].Name {
+				addHeader = true
+			}
+			if sets[pos].Generate != sets[pos+1].Generate {
+				addHeader = true
+			}
+		}
+	}
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
