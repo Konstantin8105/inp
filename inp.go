@@ -11,6 +11,7 @@ package inp
 import (
 	"bytes"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -41,6 +42,7 @@ type Format struct {
 			}
 		}
 	}
+	BeamSections  []BeamSection
 	SolidSections []SolidSection
 	ShellSections []ShellSection
 	Boundaries    []Boundary
@@ -74,7 +76,8 @@ type Step struct {
 	ElFiles    []Print
 	NodePrints []Print
 	ElPrints   []Print
-	Loads      []Load
+	Cloads     []Cload
+	Dloads     []Dload
 }
 
 func (s Step) String() string {
@@ -106,9 +109,11 @@ func (s Step) String() string {
 		}
 	}
 
-	for _, load := range s.Loads {
-		fmt.Fprintf(&buf, "*CLOAD\n%s, %3d, %.8e\n",
-			load.Position, load.Direction, load.Value)
+	for _, load := range s.Cloads {
+		fmt.Fprintf(&buf, "%s", load.String())
+	}
+	for _, load := range s.Dloads {
+		fmt.Fprintf(&buf, "%s", load.String())
 	}
 
 	for _, slice := range []struct {
@@ -297,27 +302,14 @@ func (f Format) String() string {
 	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
 	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
 
-	for _, ss := range f.ShellSections {
-		if ss.Elements == "" {
-			continue
-		}
-		fmt.Fprintf(&buf, "*SHELL SECTION")
-		fmt.Fprintf(&buf, ", ELSET=%s", ss.Elements)
-		fmt.Fprintf(&buf, ", OFFSET=%f", ss.Offset)
-		if ss.NodalThickness {
-			fmt.Fprintf(&buf, ", NODAL THICKNESS")
-		}
-		if ss.Composite {
-			fmt.Fprintf(&buf, ", COMPOSITE")
-			fmt.Fprintf(&buf, "\n")
-			for _, row := range ss.Property {
-				fmt.Fprintf(&buf, "%.8e,, %s\n", row.Thickness, row.Material)
-			}
-		} else {
-			fmt.Fprintf(&buf, ", MATERIAL=%s", ss.Property[0].Material)
-			fmt.Fprintf(&buf, "\n")
-			fmt.Fprintf(&buf, "%.8f\n", ss.Property[0].Thickness)
-		}
+	for _, s := range f.SolidSections {
+		fmt.Fprintf(&buf, "%s\n", s.String())
+	}
+	for _, s := range f.ShellSections {
+		fmt.Fprintf(&buf, "%s\n", s.String())
+	}
+	for _, s := range f.BeamSections {
+		fmt.Fprintf(&buf, "%s\n", s.String())
 	}
 
 	if f.TimePoint.Name != "" {
@@ -515,15 +507,22 @@ type Set struct {
 	Name     string
 	Generate bool
 	Indexes  []int
+	Names    []string
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*"+prefix) {
 		return false, nil
 	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseSet: %v", err)
+		}
+	}()
 
 	var set Set
-	for _, s := range strings.Split(block[0], ",")[1:] {
+	fs := fields(block[0])[1:]
+	for _, s := range fs {
 		s = strings.TrimSpace(s)
 		switch {
 		case strings.HasPrefix(s, "ELSET="):
@@ -543,9 +542,11 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 			var i64 int64
 			i64, err = strconv.ParseInt(f, 10, 64)
 			if err != nil {
-				return
+				err = nil
+				set.Names = append(set.Names, f)
+			} else {
+				set.Indexes = append(set.Indexes, int(i64))
 			}
-			set.Indexes = append(set.Indexes, int(i64))
 		}
 	}
 	(*s) = append((*s), set)
@@ -682,9 +683,19 @@ func parseBoundary(bs *[]Boundary) func(block []string) (ok bool, err error) {
 
 // *SOLID SECTION,ELSET=EALL,MATERIAL=HY
 type SolidSection struct {
-	Elements string
-	Offset   float64
+	Elset    string
 	Material string
+}
+
+func (ss SolidSection) String() string {
+	if ss.Elset == "" {
+		return ""
+	}
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "*SOLID SECTION")
+	fmt.Fprintf(&buf, ", ELSET=%s", ss.Elset)
+	fmt.Fprintf(&buf, ", MATERIAL=%s", ss.Material)
+	return buf.String()
 }
 
 func (f *Format) parseSolidSection(block []string) (ok bool, err error) {
@@ -703,14 +714,7 @@ func (f *Format) parseSolidSection(block []string) (ok bool, err error) {
 		case strings.HasPrefix(s, "ELSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			ss.Elements = s
-		case strings.HasPrefix(s, "OFFSET"):
-			index := strings.Index(s, "=")
-			s = strings.TrimSpace(s[index+1:])
-			ss.Offset, err = strconv.ParseFloat(s, 64)
-			if err != nil {
-				return
-			}
+			ss.Elset = s
 		case s == "":
 			// do nothing
 		default:
@@ -727,8 +731,98 @@ func (f *Format) parseSolidSection(block []string) (ok bool, err error) {
 	return true, nil
 }
 
+type BeamSection struct {
+	Section  string
+	Elset    string
+	Material string
+
+	Thks   [2]float64
+	Vector [3]float64
+}
+
+func (b BeamSection) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "*BEAM SECTION")
+	fmt.Fprintf(&buf, ", SECTION=%s", b.Section)
+	fmt.Fprintf(&buf, ", ELSET=%s", b.Elset)
+	fmt.Fprintf(&buf, ", MATERIAL=%s", b.Material)
+	fmt.Fprintf(&buf, "\n")
+	for iv, v := range b.Thks {
+		fmt.Fprintf(&buf, "%.7e", v)
+		if iv != len(b.Thks)-1 {
+			fmt.Fprintf(&buf, ",")
+		}
+	}
+	fmt.Fprintf(&buf, "\n")
+	for iv, v := range b.Vector {
+		fmt.Fprintf(&buf, "%.7e", v)
+		if iv != len(b.Vector)-1 {
+			fmt.Fprintf(&buf, ",")
+		}
+	}
+	fmt.Fprintf(&buf, "\n")
+	return buf.String()
+}
+
+// [*BEAM SECTION, SECTION=RECT, ELSET=LINKS, MATERIAL=STEEL 10.0, 10.0 0.0, 1.0, 0.0]
+// [*BEAM SECTION, SECTION=RECT, ELSET=RECHTS, MATERIAL=STEEL 5.0, 5.0 0.0, 1.0, 0.0]
+// [*BEAM SECTION,ELSET=SET1,MATERIAL=EL,SECTION=RECT 0.05, 0.08 0.D0,1.D0,0.D0]
+// [*BEAM SECTION,ELSET=SET2,MATERIAL=EL,SECTION=CIRC,OFFSET1=0.5,OFFSET2=.5 0.05, 0.08 0.D0,0.7071D0,0.7071D0]
+// [*BEAM SECTION,ELSET=EBEAM,MATERIAL=EL,SECTION=RECT 0.05,0.10 0.,0.,1.]
+// [*BEAM SECTION,ELSET=EBEAM,MATERIAL=EL,SECTION=RECT 0.05,0.10 0.,0.,1.]
+func (f *Format) parseBeamSection(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*BEAM SECTION") {
+		return false, nil
+	}
+	if len(block) != 3 {
+		return false, fmt.Errorf("not valid *BEAM SECTION")
+	}
+	var b BeamSection
+	split := fields(block[0])[1:]
+	for _, s := range split {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "MATERIAL"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			b.Material = s
+		case strings.HasPrefix(s, "SECTION"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			b.Section = s
+		case strings.HasPrefix(s, "ELSET"):
+			index := strings.Index(s, "=")
+			s = strings.TrimSpace(s[index+1:])
+			b.Elset = s
+		case s == "":
+			// do nothing
+		default:
+			panic(fmt.Errorf("%s", strings.Join(split, "|")))
+		}
+	}
+	for i, s := range fields(block[1]) {
+		var v float64
+		v, err = strconv.ParseFloat(s, 64)
+		if  err !=nil {
+			return
+		}
+		b.Thks[i] = v
+	}
+	for i, s := range fields(block[2]) {
+		var v float64
+		v, err = strconv.ParseFloat(s, 64)
+		if  err !=nil {
+			return
+		}
+		b.Vector[i] = v
+	}
+
+	f.BeamSections = append(f.BeamSections, b)
+	return true, nil
+}
+
 type ShellSection struct {
-	Elements       string
+	Elset          string
 	Offset         float64
 	Composite      bool
 	NodalThickness bool
@@ -736,6 +830,28 @@ type ShellSection struct {
 		Thickness float64
 		Material  string
 	}
+}
+
+func (ss ShellSection) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "*SHELL SECTION")
+	fmt.Fprintf(&buf, ", ELSET=%s", ss.Elset)
+	fmt.Fprintf(&buf, ", OFFSET=%f", ss.Offset)
+	if ss.NodalThickness {
+		fmt.Fprintf(&buf, ", NODAL THICKNESS")
+	}
+	if ss.Composite {
+		fmt.Fprintf(&buf, ", COMPOSITE")
+		fmt.Fprintf(&buf, "\n")
+		for _, row := range ss.Property {
+			fmt.Fprintf(&buf, "%.8e,, %s\n", row.Thickness, row.Material)
+		}
+	} else {
+		fmt.Fprintf(&buf, ", MATERIAL=%s", ss.Property[0].Material)
+		fmt.Fprintf(&buf, "\n")
+		fmt.Fprintf(&buf, "%.8f\n", ss.Property[0].Thickness)
+	}
+	return buf.String()
 }
 
 // *SHELL SECTION,MATERIAL=steel,ELSET=Eall,,OFFSET=0
@@ -756,7 +872,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 		case strings.HasPrefix(s, "ELSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
-			ss.Elements = s
+			ss.Elset = s
 		case strings.HasPrefix(s, "OFFSET"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
@@ -793,7 +909,6 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 			return
 		}
 	}
-
 	f.ShellSections = append(f.ShellSections, ss)
 
 	return true, nil
@@ -871,6 +986,7 @@ func (f *Format) parseStep(block []string) (ok bool, err error) {
 				return s.parsePrint(block, "*EL PRINT", &(s.ElPrints))
 			},
 			s.parseCload,
+			s.parseDload,
 			parseBoundary(&s.Boundaries),
 		})
 		if err != nil {
@@ -1066,10 +1182,15 @@ func (s *Step) parseStatic(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-type Load struct {
+type Cload struct {
 	Position  string
 	Direction int
 	Value     float64
+}
+
+func (load Cload) String() string {
+	return fmt.Sprintf("*CLOAD\n%s, %3d, %.8e\n",
+		load.Position, load.Direction, load.Value)
 }
 
 // [*CLOAD 5, 1, 5000.0]
@@ -1085,7 +1206,7 @@ func (s *Step) parseCload(block []string) (ok bool, err error) {
 		if len(fields) != 3 {
 			panic(line)
 		}
-		var l Load
+		var l Cload
 		l.Position = fields[0]
 
 		var i64 int64
@@ -1100,9 +1221,34 @@ func (s *Step) parseCload(block []string) (ok bool, err error) {
 			return
 		}
 
-		s.Loads = append(s.Loads, l)
+		s.Cloads = append(s.Cloads, l)
 	}
 
+	return true, nil
+}
+
+type Dload struct {
+	Values []string
+}
+
+func (load Dload) String() string {
+	return fmt.Sprintf("*DLOAD\n%s\n",
+		strings.Join(load.Values, " ,"))
+}
+
+// [*DLOAD EALL,GRAV,9.81,0.,0.,-1.]
+// [*DLOAD 3,P,0.01]
+// [*DLOAD 3,P,0.01]
+func (s *Step) parseDload(block []string) (ok bool, err error) {
+	if !isHeader(block[0], "*DLOAD") {
+		return false, nil
+	}
+	if len(block) != 2 {
+		return false, fmt.Errorf("not valid Dload")
+	}
+	var load Dload
+	load.Values = fields(block[1])
+	s.Dloads = append(s.Dloads, load)
 	return true, nil
 }
 
@@ -1200,6 +1346,11 @@ func ignore(prefix string) func(block []string) (ok bool, err error) {
 }
 
 func blockParser(block []string, parsers []func(block []string) (ok bool, err error)) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%s", string(debug.Stack()))
+		}
+	}()
 	if len(block) == 0 {
 		return
 	}
@@ -1299,6 +1450,7 @@ func Parse(content []byte) (f *Format, err error) {
 			parseBoundary(&f.Boundaries),
 			f.parseMaterial,
 			ignore("*SURFACE"),
+			f.parseBeamSection,
 			f.parseSolidSection,
 			f.parseShellSection,
 			f.parseStep,

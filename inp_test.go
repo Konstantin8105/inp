@@ -36,6 +36,7 @@ func Test(t *testing.T) {
 		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
 		".test/beampiso.inp",
+		".test/shellbeam.inp",
 	}...)
 
 	for _, f := range files {
@@ -48,21 +49,27 @@ func Test(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			format2, err := inp.Parse([]byte(format.String()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			format3, err := inp.Parse([]byte(format2.String()))
-			if err != nil {
-				t.Fatal(err)
-			}
 			f1 := format.String()
+			_ = os.WriteFile("f1.out", []byte(f1), 0644)
+			t.Logf("step1 ... ok")
+
+			format2, err := inp.Parse([]byte(f1))
+			if err != nil {
+				t.Fatal(err)
+			}
 			f2 := format2.String()
+			_ = os.WriteFile("f2.out", []byte(f2), 0644)
+			t.Logf("step2 ... ok")
+
+			format3, err := inp.Parse([]byte(f2))
+			if err != nil {
+				t.Fatal(err)
+			}
 			f3 := format3.String()
-			if f1 != f2 {
-				_ = os.WriteFile("f1.out", []byte(f1), 0644)
-				_ = os.WriteFile("f2.out", []byte(f2), 0644)
-				_ = os.WriteFile("f3.out", []byte(f3), 0644)
+			_ = os.WriteFile("f3.out", []byte(f3), 0644)
+			t.Logf("step3 ... ok")
+
+			if f1 != f3 {
 				t.Fatalf("not same")
 			}
 			if testing.Verbose() {
