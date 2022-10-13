@@ -491,7 +491,7 @@ func (s Set) String(name string) string {
 	// combine
 	for i := range list {
 		fmt.Fprintf(&buf, "%s", list[i])
-		if 0 < i && i%9 == 0 && i != len(list)-1 {
+		if (i+1)%9 == 0 && i != len(list)-1 {
 			fmt.Fprintf(&buf, "\n")
 		}
 	}
