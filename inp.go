@@ -457,53 +457,57 @@ type Set struct {
 	Names    []string
 }
 
+func (s Set) String(name string) string {
+	if len(s.Indexes) == 0 && len(s.Names) == 0 {
+		return "\n"
+	}
+	var buf bytes.Buffer
+	// first line
+	fmt.Fprintf(&buf, "*%s", name)
+	if s.Name != "" {
+		switch name {
+		case "ELSET":
+			fmt.Fprintf(&buf, ", ELSET=%s", s.Name)
+		case "NSET":
+			fmt.Fprintf(&buf, ", NSET=%s", s.Name)
+		default:
+			panic(fmt.Errorf("not implemented: %s", name))
+		}
+	}
+	if s.Generate {
+		fmt.Fprintf(&buf, ", GENERATE")
+	}
+	fmt.Fprintf(&buf, "%s\n", strings.Join(s.Addition, ","))
+
+	// list
+	var list []string
+	for _, ind := range s.Indexes {
+		list = append(list, fmt.Sprintf(" %5d, ", ind))
+	}
+	for _, ind := range s.Names {
+		list = append(list, fmt.Sprintf(" %s , ", ind))
+	}
+
+	// combine
+	for i := range list {
+		fmt.Fprintf(&buf, "%s", list[i])
+		if 0 < i && i%9 == 0 && i != len(list)-1 {
+			fmt.Fprintf(&buf, "\n")
+		}
+	}
+	return buf.String()
+}
+
 func writeSet(out io.Writer, name string, sets []Set) {
 	if len(sets) == 0 {
 		return
 	}
-	addHeader := true
-	for pos, el := range sets {
-		if len(el.Indexes) == 0 && len(el.Names) == 0 {
+	for _, s := range sets {
+		if len(s.Indexes) == 0 && len(s.Names) == 0 {
 			continue
 		}
-		if addHeader {
-			fmt.Fprintf(out, "\n")
-			fmt.Fprintf(out, "*%s", name)
-			if el.Name != "" {
-				switch name {
-				case "ELSET":
-					fmt.Fprintf(out, ", ELSET=%s", el.Name)
-				case "NSET":
-					fmt.Fprintf(out, ", NSET=%s", el.Name)
-				default:
-					panic(fmt.Errorf("not implemented: %s", name))
-				}
-			}
-			if el.Generate {
-				fmt.Fprintf(out, ", GENERATE")
-			}
-			fmt.Fprintf(out, "%s\n", strings.Join(el.Addition, ","))
-			addHeader = false
-		}
-		for nl, ind := range el.Indexes {
-			fmt.Fprintf(out, "%5d,", ind)
-			if 0 < nl && nl%9 == 0 && nl != len(el.Indexes)-1 {
-				fmt.Fprintf(out, "\n")
-			}
-		}
-		for _, ind := range el.Names {
-			fmt.Fprintf(out, "%s ,\n", ind)
-		}
-		if pos != len(sets)-1 {
-			if sets[pos].Name != sets[pos+1].Name {
-				addHeader = true
-			}
-			if sets[pos].Generate != sets[pos+1].Generate {
-				addHeader = true
-			}
-		}
+		fmt.Fprintf(out, "%s\n", s.String(name))
 	}
-	fmt.Fprintf(out, "\n")
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
