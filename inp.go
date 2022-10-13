@@ -486,7 +486,7 @@ func writeSet(out io.Writer, name string, sets []Set) {
 		}
 		for nl, ind := range el.Indexes {
 			fmt.Fprintf(out, "%5d,", ind)
-			if nl%5 == 0 && nl != len(el.Indexes)-1 {
+			if nl%9 == 0 && nl != len(el.Indexes)-1 {
 				fmt.Fprintf(out, "\n")
 			}
 		}
@@ -502,6 +502,7 @@ func writeSet(out io.Writer, name string, sets []Set) {
 			}
 		}
 	}
+	fmt.Fprintf(out, "\n")
 }
 
 func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
