@@ -467,6 +467,7 @@ func writeSet(out io.Writer, name string, sets []Set) {
 			continue
 		}
 		if addHeader {
+			fmt.Fprintf(out, "\n")
 			fmt.Fprintf(out, "*%s", name)
 			if el.Name != "" {
 				switch name {
@@ -486,7 +487,7 @@ func writeSet(out io.Writer, name string, sets []Set) {
 		}
 		for nl, ind := range el.Indexes {
 			fmt.Fprintf(out, "%5d,", ind)
-			if nl%9 == 0 && nl != len(el.Indexes)-1 {
+			if 0 < nl && nl%9 == 0 && nl != len(el.Indexes)-1 {
 				fmt.Fprintf(out, "\n")
 			}
 		}
