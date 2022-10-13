@@ -484,8 +484,11 @@ func writeSet(out io.Writer, name string, sets []Set) {
 			fmt.Fprintf(out, "%s\n", strings.Join(el.Addition, ","))
 			addHeader = false
 		}
-		for _, ind := range el.Indexes {
-			fmt.Fprintf(out, "%5d,\n", ind)
+		for nl, ind := range el.Indexes {
+			fmt.Fprintf(out, "%5d,", ind)
+			if nl%5 == 0 && nl != len(el.Indexes)-1 {
+				fmt.Fprintf(out, "\n")
+			}
 		}
 		for _, ind := range el.Names {
 			fmt.Fprintf(out, "%s ,\n", ind)
