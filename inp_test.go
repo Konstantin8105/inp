@@ -9,7 +9,7 @@ import (
 	"github.com/Konstantin8105/inp"
 )
 
-func Test(t *testing.T) {
+func TestParse(t *testing.T) {
 	var files []string
 
 	for _, pattern := range []string{
@@ -79,4 +79,46 @@ func Test(t *testing.T) {
 			// fmt.Fprintf(os.Stdout, "%s", format.String())
 		})
 	}
+}
+
+func TestDat(t *testing.T) {
+	var files []string
+
+	for _, pattern := range []string{
+		"beam8b",
+		"beamb",
+		"beamlin",
+		// "beammix",
+		// "beammpc",
+		// "beammr",
+		// "concrete",
+		"platestress",
+		"shellbeam",
+		"solidshell",
+		// "simplebeam",
+		// "shell3",
+	} {
+		fs, err := filepath.Glob(".test/" + pattern + "*.dat*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, fs...)
+	}
+
+	files = append(files, ".test/plastic.dat")
+
+	for _, f := range files {
+		t.Run(f, func(t *testing.T) {
+			content, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			d, err := inp.ParseDat(content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = d
+		})
+	}
+
 }

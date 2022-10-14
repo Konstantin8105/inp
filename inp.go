@@ -614,7 +614,7 @@ func (f *Model) parseElastic(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-// for structures:
+// Boundary for structures:
 // – 1: translation in the local x-direction
 // – 2: translation in the local y-direction
 // – 3: translation in the local z-direction
