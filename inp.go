@@ -2626,6 +2626,13 @@ func fields(str string) (fs []string) {
 	return
 }
 
+func parseInt(str string) (v int, err error) {
+	str = strings.TrimSpace(str)
+	str = strings.ReplaceAll(str, "D", "e")
+	v64, err := strconv.ParseInt(str, 10, 64)
+	return int(v64), err
+}
+
 func parseFloat(str string) (v float64, err error) {
 	str = strings.TrimSpace(str)
 	str = strings.ReplaceAll(str, "D", "e")
@@ -2635,6 +2642,23 @@ func parseFloat(str string) (v float64, err error) {
 
 type Dat struct {
 	BucklingFactors []float64
+	Dislpacements   []Displacement
+	Stresses        []Stress
+}
+
+type Displacement struct {
+	Name   string
+	Time   float64
+	Node   int
+	Values [3]float64 // (vx,vy,vz)
+}
+
+type Stress struct {
+	Name     string
+	Time     float64
+	Node     int
+	IntegPnt int
+	Values   [6]float64 // (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz)
 }
 
 func ParseDat(content []byte) (dat *Dat, err error) {
@@ -2661,8 +2685,14 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 	}
 	lines = lines[1:]
 
-	if err = dat.parseBucklingFactor(&lines); err != nil {
-		et.Add(err)
+	for _, err := range []error{
+		dat.parseBucklingFactor(&lines),
+		dat.parseDisplacements(&lines),
+		dat.parseStresses(&lines),
+	} {
+		if err != nil {
+			et.Add(err)
+		}
 	}
 
 	for i := range lines {
@@ -2726,3 +2756,139 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 	}
 	return
 }
+
+//  displacements (vx,vy,vz) for set NALL and time  0.1000000E+01
+//
+//          1  1.352000E-16 -2.498494E-17  4.970090E-16
+//          2  5.598820E-16 -1.501735E-16  1.454478E-15
+//          3 -4.206769E-17  1.691116E-17  7.798361E-16
+//          4 -8.240104E-17  7.188347E-17  6.600340E-16
+//          5  2.371390E-16 -1.149443E-16  2.657688E-16
+func (d *Dat) parseDisplacements(lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseBucklingFactor: %v", err)
+		}
+	}()
+	for i := 0; i < len(*lines); i++ {
+		if !strings.Contains((*lines)[i], "displacements (vx,vy,vz)") {
+			continue
+		}
+		// parse
+		fs := strings.Fields((*lines)[i])
+		if len(fs) != 8 {
+			err = fmt.Errorf("not valid: `%s`", (*lines)[i])
+			return
+		}
+		name := fs[4]
+		var time float64
+		time, err = parseFloat(fs[7])
+		if err != nil {
+			return
+		}
+		(*lines)[i] = ""
+		(*lines)[i+1] = ""
+		i += 2
+		for ; i < len(*lines); i++ {
+			if (*lines)[i] == "" {
+				break
+			}
+			fields := strings.Fields((*lines)[i])
+			if len(fields) != 4 {
+				err = fmt.Errorf("not valid line: `%s`", (*lines)[i])
+				return
+			}
+			var node int
+			node, err = parseInt(fields[0])
+			if err != nil {
+				return
+			}
+			var values [3]float64
+			for k := range values {
+				values[k], err = parseFloat(fields[k+1])
+				if err != nil {
+					return
+				}
+			}
+			d.Dislpacements = append(d.Dislpacements, Displacement{
+				Name: name, Node: node, Values: values, Time: time})
+			(*lines)[i] = ""
+		}
+	}
+	return
+}
+
+//  stresses (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz) for set EALL and time  0.1000000E+01
+//
+//          9   1  1.924780E+01  2.364342E+00  1.339050E+00 -1.499755E+00 -1.734234E+01 -5.334068E+00
+//          9   2  1.822731E+01 -1.114173E-01 -1.199380E+01  1.650582E+00 -1.518002E+01  9.306785E-01
+//          9   3  1.617674E+01  1.623984E+00 -1.026618E+01  4.567034E+00 -1.570035E+01  7.537470E+00
+//          9   4 -1.031847E+01 -1.821434E+00 -6.997414E+00  1.421124E+00  1.661227E+00 -4.074531E+00
+func (d *Dat) parseStresses(lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseStresses: %v", err)
+		}
+	}()
+	for i := 0; i < len(*lines); i++ {
+		if !strings.Contains((*lines)[i], "stresses (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz)") {
+			continue
+		}
+		// parse
+		fs := strings.Fields((*lines)[i])
+		if len(fs) != 9 {
+			err = fmt.Errorf("not valid: `%s`", (*lines)[i])
+			return
+		}
+		name := fs[5]
+		var time float64
+		time, err = parseFloat(fs[8])
+		if err != nil {
+			return
+		}
+		(*lines)[i] = ""
+		(*lines)[i+1] = ""
+		i += 2
+		for ; i < len(*lines); i++ {
+			if (*lines)[i] == "" {
+				break
+			}
+			fields := strings.Fields((*lines)[i])
+			if len(fields) != 8 {
+				err = fmt.Errorf("not valid line: `%s`", (*lines)[i])
+				return
+			}
+			var node int
+			node, err = parseInt(fields[0])
+			if err != nil {
+				return
+			}
+			var interpnt int
+			interpnt, err = parseInt(fields[1])
+			if err != nil {
+				return
+			}
+
+			var values [6]float64
+			for k := range values {
+				values[k], err = parseFloat(fields[k+1])
+				if err != nil {
+					return
+				}
+			}
+			d.Stresses = append(d.Stresses, Stress{
+				Name: name, IntegPnt: interpnt, Node: node, Values: values, Time: time})
+			(*lines)[i] = ""
+		}
+	}
+	return
+}
+
+//  forces (fx,fy,fz) for set NALL and time  0.1000000E+01
+//
+//          1 -5.000000E+03 -2.571121E-11  3.895106E-12
+//          2 -2.423295E-11  3.754330E-12  8.677503E-12
+
+//  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
+//
+//        -2.370143E-09  1.371588E+04  1.044280E-11
