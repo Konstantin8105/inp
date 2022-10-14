@@ -2642,7 +2642,7 @@ func parseFloat(str string) (v float64, err error) {
 
 type Dat struct {
 	BucklingFactors []float64
-	Dislpacements   []Record
+	Displacements   []Record
 	Stresses        []Stress
 	Forces          []Record
 	TotalForces     []Record
@@ -2693,7 +2693,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 
 	for _, err := range []error{
 		dat.parseBucklingFactor(&lines),
-		dat.parseRecord("displacements (vx,vy,vz)", &dat.Dislpacements, &lines),
+		dat.parseRecord("displacements (vx,vy,vz)", &dat.Displacements, &lines),
 		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
 		dat.parseRecord("total force (fx,fy,fz)", &dat.TotalForces, &lines),
 		dat.parseStresses(&lines),
