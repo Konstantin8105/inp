@@ -2664,3 +2664,27 @@ func parseFloat(str string) (v float64, err error) {
 	v, err = strconv.ParseFloat(str, 64)
 	return
 }
+
+type Dat struct {
+}
+
+func ParseDat(content []byte) (dat *Dat, err error) {
+	lines := func() []string {
+		dat := strings.ReplaceAll(string(content), "\r", "")
+		dat = strings.ReplaceAll(dat, "\r", "")
+		lines := strings.Split(dat, "\n")
+		for i := range lines {
+			lines[i] = strings.TrimSpace(lines[i])
+		}
+		return lines
+	}()
+
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		err = fmt.Errorf("not implemented: %s", l)
+		return
+	}
+	return
+}
