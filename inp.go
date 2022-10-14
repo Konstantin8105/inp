@@ -12,11 +12,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"runtime/debug"
 	"strconv"
 	"strings"
 
 	"github.com/Konstantin8105/errors"
+	"github.com/Konstantin8105/pow"
 )
 
 // Model - summary inp format
@@ -2667,6 +2669,13 @@ type Stress struct {
 	SecondName string
 }
 
+func (s Stress) StressIV() float64 {
+	v := s.Values
+	return math.Sqrt(0.5 *
+		(pow.E2(v[0]-v[1]) + pow.E2(v[1]-v[2]) + pow.E2(v[2]-v[0]) +
+			6*(pow.E2(v[3])+pow.E2(v[4])+pow.E2(v[5]))))
+}
+
 func ParseDat(content []byte) (dat *Dat, err error) {
 	dat = new(Dat)
 
@@ -2778,6 +2787,7 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 //  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
 //
 //        -2.370143E-09  1.371588E+04  1.044280E-11
+//
 func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
