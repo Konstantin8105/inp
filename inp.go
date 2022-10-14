@@ -1489,15 +1489,15 @@ func Parse(content []byte) (f *Model, err error) {
 	return
 }
 
-type Buckle struct {
-	Factor        float64
-	Displacements []Node
-}
-
-type Frd struct {
-	Nodes   []Node
-	Buckles []Buckle
-}
+// type Buckle struct {
+// 	Factor        float64
+// 	Displacements []Node
+// }
+//
+// type Frd struct {
+// 	Nodes   []Node
+// 	Buckles []Buckle
+// }
 
 //
 //     2C                          5418                                     1
@@ -1523,34 +1523,34 @@ type Frd struct {
 //  -1      7586-1.51592E-05 9.16009E-06 3.94705E-08
 //  -1      7588-3.28491E-05 1.94252E-05-1.75749E-08
 //
-func ParseFrd(content []byte) (frd *Frd, err error) {
-	frd = new(Frd)
-
-	lines := strings.Split(string(content), "\n")
-	for i := range lines {
-		line := strings.TrimSpace(lines[i])
-		if !strings.Contains(line, "1PSTEP") {
-			continue
-		}
-		i++
-		line = strings.TrimSpace(lines[i])
-		fields := strings.Fields(line)
-
-		var factor float64
-		factor, err = parseFloat(fields[2])
-		if err != nil {
-			return
-		}
-		if factor == 0 {
-			continue
-		}
-
-		frd.Buckles = append(frd.Buckles, Buckle{Factor: factor})
-	}
-	// sort buckle
-
-	return
-}
+// func ParseFrd(content []byte) (frd *Frd, err error) {
+// 	frd = new(Frd)
+//
+// 	lines := strings.Split(string(content), "\n")
+// 	for i := range lines {
+// 		line := strings.TrimSpace(lines[i])
+// 		if !strings.Contains(line, "1PSTEP") {
+// 			continue
+// 		}
+// 		i++
+// 		line = strings.TrimSpace(lines[i])
+// 		fields := strings.Fields(line)
+//
+// 		var factor float64
+// 		factor, err = parseFloat(fields[2])
+// 		if err != nil {
+// 			return
+// 		}
+// 		if factor == 0 {
+// 			continue
+// 		}
+//
+// 		frd.Buckles = append(frd.Buckles, Buckle{Factor: factor})
+// 	}
+// 	// sort buckle
+//
+// 	return
+// }
 
 // ParseBucklingFactor in file for example `shell2.dat` and return
 // slice of buckling factors.
@@ -1564,25 +1564,25 @@ func ParseFrd(content []byte) (frd *Frd, err error) {
 //       2   0.4196190E+03
 //       3   0.4200342E+03
 //       4   0.4212441E+03
-func ParseBucklingFactor(content []byte) (factors []float64, err error) {
-	for _, line := range strings.Split(string(content), "\n")[5:] {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			panic(line)
-		}
-		var factor float64
-		factor, err = parseFloat(fields[1])
-		if err != nil {
-			return
-		}
-		factors = append(factors, factor)
-	}
-	return
-}
+// func ParseBucklingFactor(content []byte) (factors []float64, err error) {
+// 	for _, line := range strings.Split(string(content), "\n")[5:] {
+// 		line = strings.TrimSpace(line)
+// 		if line == "" {
+// 			continue
+// 		}
+// 		fields := strings.Fields(line)
+// 		if len(fields) != 2 {
+// 			panic(line)
+// 		}
+// 		var factor float64
+// 		factor, err = parseFloat(fields[1])
+// 		if err != nil {
+// 			return
+// 		}
+// 		factors = append(factors, factor)
+// 	}
+// 	return
+// }
 
 // lineGroup - group of points
 //  *------*------*
