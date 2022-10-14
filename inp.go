@@ -2642,23 +2642,29 @@ func parseFloat(str string) (v float64, err error) {
 
 type Dat struct {
 	BucklingFactors []float64
-	Dislpacements   []Displacement
+	Dislpacements   []Record
 	Stresses        []Stress
+	Forces          []Record
+	TotalForces     []Record
 }
 
-type Displacement struct {
-	Name   string
-	Time   float64
-	Node   int
-	Values [3]float64 // (vx,vy,vz)
+type Record struct {
+	Name string
+	Time float64
+	Node int
+
+	// (vx,vy,vz)
+	// (fx,fy,fz)
+	Values [3]float64
 }
 
 type Stress struct {
-	Name     string
-	Time     float64
-	Node     int
-	IntegPnt int
-	Values   [6]float64 // (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz)
+	Name       string
+	Time       float64
+	Node       int
+	IntegPnt   int
+	Values     [6]float64 // (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz)
+	SecondName string
 }
 
 func ParseDat(content []byte) (dat *Dat, err error) {
@@ -2687,7 +2693,9 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 
 	for _, err := range []error{
 		dat.parseBucklingFactor(&lines),
-		dat.parseDisplacements(&lines),
+		dat.parseRecord("displacements (vx,vy,vz)", &dat.Dislpacements, &lines),
+		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
+		dat.parseRecord("total force (fx,fy,fz)", &dat.TotalForces, &lines),
 		dat.parseStresses(&lines),
 	} {
 		if err != nil {
@@ -2761,28 +2769,38 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 //
 //          1  1.352000E-16 -2.498494E-17  4.970090E-16
 //          2  5.598820E-16 -1.501735E-16  1.454478E-15
-//          3 -4.206769E-17  1.691116E-17  7.798361E-16
-//          4 -8.240104E-17  7.188347E-17  6.600340E-16
-//          5  2.371390E-16 -1.149443E-16  2.657688E-16
-func (d *Dat) parseDisplacements(lines *[]string) (err error) {
+//
+//  forces (fx,fy,fz) for set NALL and time  0.1000000E+01
+//
+//          1 -5.000000E+03 -2.571121E-11  3.895106E-12
+//          2 -2.423295E-11  3.754330E-12  8.677503E-12
+//
+//  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
+//
+//        -2.370143E-09  1.371588E+04  1.044280E-11
+func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("parseBucklingFactor: %v", err)
+			err = fmt.Errorf("parseRecord `%s`: %v", header, err)
 		}
 	}()
 	for i := 0; i < len(*lines); i++ {
-		if !strings.Contains((*lines)[i], "displacements (vx,vy,vz)") {
+		if !strings.Contains((*lines)[i], header) {
 			continue
 		}
 		// parse
 		fs := strings.Fields((*lines)[i])
-		if len(fs) != 8 {
-			err = fmt.Errorf("not valid: `%s`", (*lines)[i])
-			return
+
+		var name string
+
+		for p := range fs {
+			if fs[p] == "set" {
+				name = fs[p+1]
+			}
 		}
-		name := fs[4]
+
 		var time float64
-		time, err = parseFloat(fs[7])
+		time, err = parseFloat(fs[len(fs)-1])
 		if err != nil {
 			return
 		}
@@ -2794,23 +2812,23 @@ func (d *Dat) parseDisplacements(lines *[]string) (err error) {
 				break
 			}
 			fields := strings.Fields((*lines)[i])
-			if len(fields) != 4 {
-				err = fmt.Errorf("not valid line: `%s`", (*lines)[i])
-				return
-			}
+			counter := 0
 			var node int
-			node, err = parseInt(fields[0])
-			if err != nil {
-				return
-			}
-			var values [3]float64
-			for k := range values {
-				values[k], err = parseFloat(fields[k+1])
+			if !strings.Contains(header, "total force") {
+				counter++
+				node, err = parseInt(fields[0])
 				if err != nil {
 					return
 				}
 			}
-			d.Dislpacements = append(d.Dislpacements, Displacement{
+			var values [3]float64
+			for k := range values {
+				values[k], err = parseFloat(fields[k+counter])
+				if err != nil {
+					return
+				}
+			}
+			(*recs) = append((*recs), Record{
 				Name: name, Node: node, Values: values, Time: time})
 			(*lines)[i] = ""
 		}
@@ -2824,6 +2842,8 @@ func (d *Dat) parseDisplacements(lines *[]string) (err error) {
 //          9   2  1.822731E+01 -1.114173E-01 -1.199380E+01  1.650582E+00 -1.518002E+01  9.306785E-01
 //          9   3  1.617674E+01  1.623984E+00 -1.026618E+01  4.567034E+00 -1.570035E+01  7.537470E+00
 //          9   4 -1.031847E+01 -1.821434E+00 -6.997414E+00  1.421124E+00  1.661227E+00 -4.074531E+00
+//
+//          1   1 -4.365744E+02 -1.138162E+02 -1.460370E+02 -9.350144E+00 -7.660134E-01  2.364488E+01 _shell_0000000001`
 func (d *Dat) parseStresses(lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
@@ -2835,29 +2855,28 @@ func (d *Dat) parseStresses(lines *[]string) (err error) {
 			continue
 		}
 		// parse
-		fs := strings.Fields((*lines)[i])
-		if len(fs) != 9 {
-			err = fmt.Errorf("not valid: `%s`", (*lines)[i])
-			return
-		}
-		name := fs[5]
+		var name string
 		var time float64
-		time, err = parseFloat(fs[8])
-		if err != nil {
-			return
+		{
+			fs := strings.Fields((*lines)[i])
+			if len(fs) != 9 {
+				err = fmt.Errorf("not valid: `%s`", (*lines)[i])
+				return
+			}
+			name = fs[5]
+			time, err = parseFloat(fs[8])
+			if err != nil {
+				return
+			}
+			(*lines)[i] = ""
+			(*lines)[i+1] = ""
+			i += 2
 		}
-		(*lines)[i] = ""
-		(*lines)[i+1] = ""
-		i += 2
 		for ; i < len(*lines); i++ {
 			if (*lines)[i] == "" {
 				break
 			}
 			fields := strings.Fields((*lines)[i])
-			if len(fields) != 8 {
-				err = fmt.Errorf("not valid line: `%s`", (*lines)[i])
-				return
-			}
 			var node int
 			node, err = parseInt(fields[0])
 			if err != nil {
@@ -2871,24 +2890,21 @@ func (d *Dat) parseStresses(lines *[]string) (err error) {
 
 			var values [6]float64
 			for k := range values {
-				values[k], err = parseFloat(fields[k+1])
+				values[k], err = parseFloat(fields[k+2])
 				if err != nil {
 					return
 				}
 			}
+			var secName string
+			if len(fields) == 9 {
+				secName = fields[8]
+			}
 			d.Stresses = append(d.Stresses, Stress{
-				Name: name, IntegPnt: interpnt, Node: node, Values: values, Time: time})
+				Name: name, IntegPnt: interpnt,
+				Node: node, Values: values, Time: time,
+				SecondName: secName})
 			(*lines)[i] = ""
 		}
 	}
 	return
 }
-
-//  forces (fx,fy,fz) for set NALL and time  0.1000000E+01
-//
-//          1 -5.000000E+03 -2.571121E-11  3.895106E-12
-//          2 -2.423295E-11  3.754330E-12  8.677503E-12
-
-//  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
-//
-//        -2.370143E-09  1.371588E+04  1.044280E-11

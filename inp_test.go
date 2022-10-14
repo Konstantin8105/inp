@@ -88,15 +88,15 @@ func TestDat(t *testing.T) {
 		"beam8b",
 		"beamb",
 		"beamlin",
-		// "beammix",
-		// "beammpc",
+		"beammix",
+		"beammpc",
 		// "beammr",
-		// "concrete",
+		"concrete",
 		"platestress",
 		"shellbeam",
 		"solidshell",
 		// "simplebeam",
-		// "shell3",
+		"shell3",
 	} {
 		fs, err := filepath.Glob(".test/" + pattern + "*.dat*")
 		if err != nil {
