@@ -120,5 +120,17 @@ func TestDat(t *testing.T) {
 			_ = d
 		})
 	}
+}
 
+func Benchmark(b *testing.B) {
+	content, err := os.ReadFile(".test/plastic.dat")
+	if err != nil {
+		panic(err)
+	}
+	for n := 0; n < b.N; n++ {
+		_, err := inp.ParseDat(content)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
