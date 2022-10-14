@@ -19,8 +19,8 @@ import (
 	"github.com/Konstantin8105/errors"
 )
 
-// Format - summary inp format
-type Format struct {
+// Model - summary inp format
+type Model struct {
 	Heading  string
 	Nodes    []Node
 	Elements []Element
@@ -161,7 +161,7 @@ func (s Step) String() string {
 	return buf.String()
 }
 
-func (f Format) String() string {
+func (f Model) String() string {
 	var buf bytes.Buffer
 
 	if f.Heading != "" {
@@ -307,7 +307,7 @@ func isHeader(line, prefix string) bool {
 	return prefix == line
 }
 
-func (f *Format) parseHeading(block []string) (ok bool, err error) {
+func (f *Model) parseHeading(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*HEADING") {
 		return false, nil
 	}
@@ -340,7 +340,7 @@ type Node struct {
 //   Value of first coordinate.
 //   Value of second coordinate.
 //   Value of third coordinate.
-func (f *Format) parseNode(block []string) (ok bool, err error) {
+func (f *Model) parseNode(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*NODE") {
 		return false, nil
 	}
@@ -407,7 +407,7 @@ type Element struct {
 // 	Node numbers forming the element. The order of nodes around the element is
 //	given in section 2.1. Use continuation lines for elements having more
 //	than 15 nodes (maximum 16 entries per line).
-func (f *Format) parseElement(block []string) (ok bool, err error) {
+func (f *Model) parseElement(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*ELEMENT") {
 		return false, nil
 	}
@@ -510,7 +510,7 @@ func writeSet(out io.Writer, name string, sets []Set) {
 	}
 }
 
-func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
+func (f *Model) parseSet(s *[]Set, prefix string, block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*"+prefix) {
 		return false, nil
 	}
@@ -554,7 +554,7 @@ func (f *Format) parseSet(s *[]Set, prefix string, block []string) (ok bool, err
 	return true, nil
 }
 
-func (f *Format) parseDensity(block []string) (ok bool, err error) {
+func (f *Model) parseDensity(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
 	}
@@ -565,7 +565,7 @@ func (f *Format) parseDensity(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-func (f *Format) parseExpansion(block []string) (ok bool, err error) {
+func (f *Model) parseExpansion(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
@@ -576,7 +576,7 @@ func (f *Format) parseExpansion(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-func (f *Format) parseMaterial(block []string) (ok bool, err error) {
+func (f *Model) parseMaterial(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*MATERIAL") {
 		return false, nil
 	}
@@ -596,7 +596,7 @@ func (f *Format) parseMaterial(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-func (f *Format) parseElastic(block []string) (ok bool, err error) {
+func (f *Model) parseElastic(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*ELASTIC") {
 		return false, nil
 	}
@@ -698,7 +698,7 @@ func (ss SolidSection) String() string {
 	return buf.String()
 }
 
-func (f *Format) parseSolidSection(block []string) (ok bool, err error) {
+func (f *Model) parseSolidSection(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*SOLID SECTION") {
 		return false, nil
 	}
@@ -770,7 +770,7 @@ func (b BeamSection) String() string {
 // [*BEAM SECTION,ELSET=SET2,MATERIAL=EL,SECTION=CIRC,OFFSET1=0.5,OFFSET2=.5 0.05, 0.08 0.D0,0.7071D0,0.7071D0]
 // [*BEAM SECTION,ELSET=EBEAM,MATERIAL=EL,SECTION=RECT 0.05,0.10 0.,0.,1.]
 // [*BEAM SECTION,ELSET=EBEAM,MATERIAL=EL,SECTION=RECT 0.05,0.10 0.,0.,1.]
-func (f *Format) parseBeamSection(block []string) (ok bool, err error) {
+func (f *Model) parseBeamSection(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*BEAM SECTION") {
 		return false, nil
 	}
@@ -856,7 +856,7 @@ func (ss ShellSection) String() string {
 
 // *SHELL SECTION,MATERIAL=steel,ELSET=Eall,,OFFSET=0
 // 6.2500E-02
-func (f *Format) parseShellSection(block []string) (ok bool, err error) {
+func (f *Model) parseShellSection(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*SHELL SECTION") {
 		return false, nil
 	}
@@ -934,7 +934,7 @@ func (f *Format) parseShellSection(block []string) (ok bool, err error) {
 // *EL PRINT,ELSET=EALL
 // S
 // *END STEP
-func (f *Format) parseStep(block []string) (ok bool, err error) {
+func (f *Model) parseStep(block []string) (ok bool, err error) {
 	var s Step
 	if !isHeader(block[0], "*STEP") {
 		return false, nil
@@ -1265,7 +1265,7 @@ func (s *Step) parseDload(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
+func (f *Model) parseTimePoint(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*TIME POINTS") {
 		return false, nil
 	}
@@ -1308,7 +1308,7 @@ func (f *Format) parseTimePoint(block []string) (ok bool, err error) {
 	return true, nil
 }
 
-func (f *Format) parsePlastic(block []string) (ok bool, err error) {
+func (f *Model) parsePlastic(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*PLASTIC") {
 		return false, nil
 	}
@@ -1414,7 +1414,7 @@ func splitByBlocks(lines []string) (blocks [][]string) {
 	return
 }
 
-func Parse(content []byte) (f *Format, err error) {
+func Parse(content []byte) (f *Model, err error) {
 	// split into lines
 	var lines []string
 	{
@@ -1445,7 +1445,7 @@ func Parse(content []byte) (f *Format, err error) {
 	}
 
 	// parsing
-	f = new(Format)
+	f = new(Model)
 
 	et := errors.New("Parse")
 	for _, block := range blocks {
@@ -1609,7 +1609,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 
 // ChangeTypeFiniteElement - change type finite element for example
 // from S4 to S8
-// func (f *Format) ChangeTypeFiniteElement(from *FiniteElement, to *FiniteElement) (err error) {
+// func (f *Model) ChangeTypeFiniteElement(from *FiniteElement, to *FiniteElement) (err error) {
 // 	if from == to {
 // 		return nil
 // 	}
@@ -1709,7 +1709,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 	return fmt.Errorf("Cannot change FE from %v to %v", from, to)
 // }
 
-// func (f *Format) foundPointCIndexInLineGroup(p1, p2 int, group *[]lineGroup) (middlePoint int, err error) {
+// func (f *Model) foundPointCIndexInLineGroup(p1, p2 int, group *[]lineGroup) (middlePoint int, err error) {
 // 	if p1 > p2 {
 // 		return -1, fmt.Errorf("Case p1 < p2 is not correct")
 // 	}
@@ -1721,7 +1721,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 	return -1, fmt.Errorf("Cannot found in group with point %v,%v\nGroup = %v", p1, p2, *group)
 // }
 
-// func (f *Format) createMiddlePoint(fe *FiniteElement) (group []lineGroup, err error) {
+// func (f *Model) createMiddlePoint(fe *FiniteElement) (group []lineGroup, err error) {
 // 	// check slice of nodes inp format - index must by from less to more
 // 	// if it is true, then we can use binary sort for fast found the point
 // 	for index := range f.Nodes {
@@ -1845,7 +1845,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 	return group, nil
 // }
 
-// func (f *Format) foundByIndex(index int) (node [3]float64, err error) {
+// func (f *Model) foundByIndex(index int) (node [3]float64, err error) {
 // 	i := sort.Search(len(f.Nodes), func(a int) bool { return f.Nodes[a].Index >= index })
 // 	if i < len(f.Nodes) && f.Nodes[i].Index == index {
 // 		// index is present at nodes
@@ -1856,7 +1856,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 	return node, fmt.Errorf("Cannot found in sort.Search : %v, but i = %v", index, i)
 // }
 
-// func (f *Format) changeFEfromQuadraticToTriangle(from *FiniteElement, to *FiniteElement) {
+// func (f *Model) changeFEfromQuadraticToTriangle(from *FiniteElement, to *FiniteElement) {
 // 	var maximalIndex int
 // 	for _, element := range f.Elements {
 // 		for _, data := range element.Data {
@@ -2134,7 +2134,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // }
 //
 // AddUniqueIndexToElements - add unique index for element with Index == -1
-// func (f *Format) AddUniqueIndexToElements() {
+// func (f *Model) AddUniqueIndexToElements() {
 // 	var maxIndexElement int
 // 	for _, element := range f.Elements {
 // 		for _, data := range element.Data {
@@ -2158,7 +2158,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // }
 
 // AddNamedNodesOnLevel - add named nodes on specific elevation with name
-// func (f *Format) AddNamedNodesOnLevel(level float64, name string) int {
+// func (f *Model) AddNamedNodesOnLevel(level float64, name string) int {
 // 	eps := 1e-8
 // 	var n NamedNode
 // 	n.Name = name
@@ -2176,7 +2176,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // }
 
 // Open - open file in inp format
-// func (inp *Format) Open(file string) (err error) {
+// func (inp *Model) Open(file string) (err error) {
 // 	inFile, err := os.Open(file)
 // 	if err != nil {
 // 		return
@@ -2279,14 +2279,14 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // 	return nil
 // }
 
-// func saveNamedNode(namedNode NamedNode, inp *Format) {
+// func saveNamedNode(namedNode NamedNode, inp *Model) {
 // 	if len(namedNode.Nodes) == 0 {
 // 		return
 // 	}
 // 	inp.NodesWithName = append(inp.NodesWithName, namedNode)
 // }
 //
-// func saveElement(element Element, inp *Format) {
+// func saveElement(element Element, inp *Model) {
 // 	if len(element.Data) == 0 {
 // 		return
 // 	}
@@ -2429,7 +2429,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // // func (a pp) Less(i, j int) bool { return a[i].Index < a[j].Index }
 //
 // // Save - convertor
-// func (f Format) Save(filename string) (err error) {
+// func (f Model) Save(filename string) (err error) {
 // 	if len(f.Name) == 0 {
 // 		f.Name = filename
 // 	}
@@ -2439,7 +2439,7 @@ func ParseBucklingFactor(content []byte) (factors []float64, err error) {
 // }
 //
 // // SaveINPtoLines - converting
-// func (f Format) SaveINPtoLines() (lines []string) {
+// func (f Model) SaveINPtoLines() (lines []string) {
 //
 // 	lines = make([]string, 0, len(f.Elements)+len(f.Nodes)+10)
 //
