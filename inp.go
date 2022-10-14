@@ -1552,38 +1552,6 @@ func Parse(content []byte) (f *Model, err error) {
 // 	return
 // }
 
-// ParseBucklingFactor in file for example `shell2.dat` and return
-// slice of buckling factors.
-//
-//      B U C K L I N G   F A C T O R   O U T P U T
-//
-//  MODE NO       BUCKLING
-//                 FACTOR
-//
-//       1   0.4185108E+03
-//       2   0.4196190E+03
-//       3   0.4200342E+03
-//       4   0.4212441E+03
-// func ParseBucklingFactor(content []byte) (factors []float64, err error) {
-// 	for _, line := range strings.Split(string(content), "\n")[5:] {
-// 		line = strings.TrimSpace(line)
-// 		if line == "" {
-// 			continue
-// 		}
-// 		fields := strings.Fields(line)
-// 		if len(fields) != 2 {
-// 			panic(line)
-// 		}
-// 		var factor float64
-// 		factor, err = parseFloat(fields[1])
-// 		if err != nil {
-// 			return
-// 		}
-// 		factors = append(factors, factor)
-// 	}
-// 	return
-// }
-
 // lineGroup - group of points
 //  *------*------*
 //  A      C      B
@@ -2666,9 +2634,19 @@ func parseFloat(str string) (v float64, err error) {
 }
 
 type Dat struct {
+	BucklingFactors []float64
 }
 
 func ParseDat(content []byte) (dat *Dat, err error) {
+	dat = new(Dat)
+
+	et := errors.New("ParseDat")
+	defer func() {
+		if et.IsError() {
+			err = et
+		}
+	}()
+
 	lines := func() []string {
 		dat := strings.ReplaceAll(string(content), "\r", "")
 		dat = strings.ReplaceAll(dat, "\r", "")
@@ -2678,13 +2656,73 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		}
 		return lines
 	}()
+	if lines[0] != "" {
+		err = fmt.Errorf("not valid first line: `%s`", lines[0])
+	}
+	lines = lines[1:]
 
-	for _, l := range lines {
-		if l == "" {
+	if err = dat.parseBucklingFactor(&lines); err != nil {
+		et.Add(err)
+	}
+
+	for i := range lines {
+		if lines[i] == "" {
 			continue
 		}
-		err = fmt.Errorf("not implemented: %s", l)
-		return
+		et.Add(fmt.Errorf("not parse: %s", lines[i]))
+		break
+	}
+
+	return
+}
+
+// ParseBucklingFactor in file for example `shell2.dat` and return
+// slice of buckling factors.
+//
+//      B U C K L I N G   F A C T O R   O U T P U T
+//
+//  MODE NO       BUCKLING
+//                 FACTOR
+//
+//       1   0.4185108E+03
+//       2   0.4196190E+03
+//       3   0.4200342E+03
+//       4   0.4212441E+03
+func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseBucklingFactor: %v", err)
+		}
+	}()
+	for i := 0; i < len(*lines); i++ {
+		if (*lines)[i] != "B U C K L I N G   F A C T O R   O U T P U T" {
+			continue
+		}
+		counter := 0
+		for ; i < len(*lines); i++ {
+			(*lines)[i] = ""
+			counter++
+			if counter == 5 {
+				break
+			}
+		}
+		for i += 1; i < len(*lines); i++ {
+			if (*lines)[i] == "" {
+				break
+			}
+			fields := strings.Fields((*lines)[i])
+			if len(fields) != 2 {
+				err = fmt.Errorf("not valid line: `%s`", (*lines)[i])
+				return
+			}
+			var factor float64
+			factor, err = parseFloat(fields[1])
+			if err != nil {
+				return
+			}
+			d.BucklingFactors = append(d.BucklingFactors, factor)
+			(*lines)[i] = ""
+		}
 	}
 	return
 }
