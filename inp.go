@@ -45,12 +45,13 @@ type Model struct {
 			}
 		}
 	}
-	BeamSections  []BeamSection
-	SolidSections []SolidSection
-	ShellSections []ShellSection
-	Boundaries    []Boundary
-	Steps         []Step
-	TimePoint     struct {
+	InitialConditions Condition
+	BeamSections      []BeamSection
+	SolidSections     []SolidSection
+	ShellSections     []ShellSection
+	Boundaries        []Boundary
+	Steps             []Step
+	TimePoint         struct {
 		Name     string
 		Generate bool
 		Time     []float64
@@ -167,6 +168,27 @@ func (s Step) String() string {
 	return buf.String()
 }
 
+type Condition struct {
+	Type string
+	NodeSet         string
+	TemperatureNode float64
+}
+
+func (c Condition) String() string {
+	if c.Type == "" {
+		return ""
+	}
+	var out string
+	out += "*INITIAL CONDITIONS"
+	if c.Type == "" {
+		out += fmt.Sprintf(", TYPE=%s", c.Type)
+	}
+	out += "\n"
+	out += fmt.Sprintf("%s, %.7e", c.NodeSet, c.TemperatureNode)
+	out += "\n"
+	return out
+}
+
 func (f Model) String() string {
 	var buf bytes.Buffer
 
@@ -253,6 +275,8 @@ func (f Model) String() string {
 	}
 	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
 	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
+
+	fmt.Fprintf(&buf, "%s\n", f.InitialConditions.String())
 
 	for _, s := range f.SolidSections {
 		fmt.Fprintf(&buf, "%s\n", s.String())
