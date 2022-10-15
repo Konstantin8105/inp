@@ -180,7 +180,7 @@ func (c Condition) String() string {
 	}
 	var out string
 	out += "*INITIAL CONDITIONS"
-	if c.Type == "" {
+	if c.Type != "" {
 		out += fmt.Sprintf(", TYPE=%s", c.Type)
 	}
 	out += "\n"
