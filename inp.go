@@ -75,12 +75,13 @@ type Step struct {
 		Number   int     // Number of buckling factors desired (usually 1)
 		Accuracy float64 // Accuracy desired (default: 0.01).
 	}
-	NodeFiles  []Print
-	ElFiles    []Print
-	NodePrints []Print
-	ElPrints   []Print
-	Cloads     []Cload
-	Dloads     []Dload
+	NodeFiles    []Print
+	ElFiles      []Print
+	NodePrints   []Print
+	ElPrints     []Print
+	Cloads       []Cload
+	Dloads       []Dload
+	Temperatures []Temperature
 }
 
 func (s Step) String() string {
@@ -118,6 +119,9 @@ func (s Step) String() string {
 		fmt.Fprintf(&buf, "%s", load.String())
 	}
 	for _, load := range s.Dloads {
+		fmt.Fprintf(&buf, "%s", load.String())
+	}
+	for _, load := range s.Temperatures {
 		fmt.Fprintf(&buf, "%s", load.String())
 	}
 
@@ -289,6 +293,34 @@ func (f Model) String() string {
 	}
 
 	return strings.ToUpper(buf.String())
+}
+
+type Temperature struct {
+	Parameters      []string
+	NodeSet         string
+	TemperatureNode float64
+	Gradient2       float64
+	Gradient1       float64
+}
+
+func (t Temperature) String() string {
+	if t.NodeSet == "" {
+		return ""
+	}
+	var out string
+	out += "*TEMPERATURE"
+	if 0 < len(t.Parameters) {
+		out += "," + strings.Join(t.Parameters, ",")
+	}
+	out += "\n"
+	out += fmt.Sprintf("%s, %.7e", t.NodeSet, t.TemperatureNode)
+	if t.Gradient2 != 0 || t.Gradient1 != 0 {
+		out += fmt.Sprintf(" , %.7e", t.Gradient2)
+	}
+	if t.Gradient1 != 0 {
+		out += fmt.Sprintf(" , %.7e", t.Gradient1)
+	}
+	return out
 }
 
 // isHeader return true for example:
