@@ -320,7 +320,7 @@ func (t Temperature) String() string {
 	if t.Gradient1 != 0 {
 		out += fmt.Sprintf(" , %.7e", t.Gradient1)
 	}
-	return out
+	return out + "\n"
 }
 
 // isHeader return true for example:
