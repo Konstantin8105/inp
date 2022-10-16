@@ -50,6 +50,7 @@ type Model struct {
 	SolidSections     []SolidSection
 	ShellSections     []ShellSection
 	Boundaries        []Boundary
+	Springs           []Spring
 	Steps             []Step
 	TimePoint         struct {
 		Name     string
@@ -169,7 +170,7 @@ func (s Step) String() string {
 }
 
 type Condition struct {
-	Type string
+	Type            string
 	NodeSet         string
 	TemperatureNode float64
 }
@@ -287,6 +288,9 @@ func (f Model) String() string {
 	for _, s := range f.BeamSections {
 		fmt.Fprintf(&buf, "%s\n", s.String())
 	}
+	for _, s := range f.Springs{
+		fmt.Fprintf(&buf, "%s\n", s.String())
+	}
 
 	if f.TimePoint.Name != "" {
 		fmt.Fprintf(&buf, "*TIME POINTS, NAME=%s", f.TimePoint.Name)
@@ -302,6 +306,7 @@ func (f Model) String() string {
 		}
 		fmt.Fprintf(&buf, "\n")
 	}
+
 
 	for _, boun := range f.Boundaries {
 		if boun.Factor != 0.0 {
@@ -670,6 +675,38 @@ func (f *Model) parseElastic(block []string) (ok bool, err error) {
 	}
 
 	return true, nil
+}
+
+// Spring
+//
+// First line:
+// *SPRING
+// Enter the parameter ELSET and its value and any optional parameter, if needed.
+//
+// Second line for SPRINGA type elements: enter a blank line
+// Second line for SPRING1 or SPRING2 type elements:
+// • first degree of freedom (integer, for SPRING1 and SPRING2 elements)
+// • second degree of freedom (integer, only for SPRING2 elements)
+// Following line if the parameter NONLINEAR is not used:
+// • Spring constant (real number).
+type Spring struct {
+	ElsetName      string
+	Freedom        [2]int
+	SpringConstant float64
+}
+
+func (s Spring) String() string {
+	var out string
+	out += fmt.Sprintf("*SPRING,ELSET=%s\n", s.ElsetName)
+	if 0 < s.Freedom[0] && 0 < s.Freedom[1] {
+		out += fmt.Sprintf("%d, %d\n", s.Freedom[0], s.Freedom[1])
+	} else if 0 < s.Freedom[0] {
+		out += fmt.Sprintf("%d\n", s.Freedom[0])
+	} else {
+		out += "\n"
+	}
+	out += fmt.Sprintf("%.7e\n", s.SpringConstant)
+	return out
 }
 
 // Boundary for structures:
