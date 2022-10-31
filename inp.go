@@ -127,7 +127,7 @@ func (s Step) String() string {
 		fmt.Fprintf(&buf, "%s", load.String())
 	}
 	for _, boun := range s.Boundaries {
-		if boun.Factor != 0.0 {
+		if boun.Factor == 0.0 {
 			continue
 		}
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
@@ -317,7 +317,7 @@ func (f Model) String() string {
 
 
 	for _, boun := range f.Boundaries {
-		if boun.Factor != 0.0 {
+		if boun.Factor == 0.0 {
 			continue
 		}
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
