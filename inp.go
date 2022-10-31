@@ -126,6 +126,14 @@ func (s Step) String() string {
 	for _, load := range s.Temperatures {
 		fmt.Fprintf(&buf, "%s", load.String())
 	}
+	for _, boun := range s.Boundaries {
+		if boun.Factor != 0.0 {
+			continue
+		}
+		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
+			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
+		)
+	}
 
 	for _, slice := range []struct {
 		prefix     string
