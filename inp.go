@@ -2800,7 +2800,8 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 	}
 	lines = lines[1:]
 
-	for _, err := range []error{
+	for pos, err := range []error{
+		dat.cleanDat(&lines),
 		dat.parseBucklingFactor(&lines),
 		dat.parseRecord("displacements (vx,vy,vz)", &dat.Displacements, &lines),
 		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
@@ -2808,7 +2809,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		dat.parseStresses(&lines),
 	} {
 		if err != nil {
-			et.Add(err)
+			et.Add(fmt.Errorf("Pos: %d. %v", pos, err))
 		}
 	}
 
@@ -2821,6 +2822,30 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 	}
 
 	return
+}
+
+func (d *Dat) cleanDat(lines *[]string) error {
+	//
+	// KNOT1
+	// tra      7991  0.2840E-06  0.3126E-06 -0.5253E-08
+	// rot     93633 -0.1991E-05 -0.4091E-05 -0.7867E-06
+	// exp     93634 -0.1501E-07
+	//
+	for i := 0; i < len(*lines); i++ {
+		if strings.Contains((*lines)[i], "E I G E N V A L U E    N U M B E R") {
+			// E I G E N V A L U E    N U M B E R     1
+			(*lines)[i+0] = ""
+			continue
+		}
+		if !strings.Contains((*lines)[i], "KNOT1") {
+			continue
+		}
+		(*lines)[i+0] = ""
+		(*lines)[i+1] = ""
+		(*lines)[i+2] = ""
+		(*lines)[i+3] = ""
+	}
+	return nil
 }
 
 // ParseBucklingFactor in file for example `shell2.dat` and return

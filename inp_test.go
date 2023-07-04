@@ -9,6 +9,8 @@ import (
 	"github.com/Konstantin8105/inp"
 )
 
+const data = "testdata"
+
 func TestParse(t *testing.T) {
 	var files []string
 
@@ -26,7 +28,7 @@ func TestParse(t *testing.T) {
 		// "simplebeam",
 		// "shell3",
 	} {
-		fs, err := filepath.Glob(".test/" + pattern + "*.inp")
+		fs, err := filepath.Glob(data + "/" + pattern + "*.inp")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,7 +39,7 @@ func TestParse(t *testing.T) {
 		"./convertorInp/Example/shell.inp",
 		"./convertorInp/Example/shell2.inp",
 		"./convertorInp/Example/cone.inp",
-		".test/beampiso.inp",
+		data + "/beampiso.inp",
 	}...)
 
 	for _, f := range files {
@@ -98,14 +100,17 @@ func TestDat(t *testing.T) {
 		// "simplebeam",
 		"shell3",
 	} {
-		fs, err := filepath.Glob(".test/" + pattern + "*.dat*")
+		fs, err := filepath.Glob(data + "/" + pattern + "*.dat*")
 		if err != nil {
 			t.Fatal(err)
 		}
 		files = append(files, fs...)
 	}
 
-	files = append(files, ".test/plastic.dat")
+	files = append(files,
+		data+"/plastic.dat",
+		data+"/tmpfile.dat",
+	)
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
@@ -123,7 +128,7 @@ func TestDat(t *testing.T) {
 }
 
 func Benchmark(b *testing.B) {
-	content, err := os.ReadFile(".test/plastic.dat")
+	content, err := os.ReadFile(data + "/plastic.dat")
 	if err != nil {
 		panic(err)
 	}
