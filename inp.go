@@ -71,7 +71,8 @@ type Model struct {
 		Generate bool
 		Time     []float64
 	}
-	RigidBodies []RigidBody
+	RigidBodies           []RigidBody
+	DistributingCouplings []DistributingCoupling
 }
 
 type Step struct {
@@ -341,6 +342,9 @@ func (f Model) String() string {
 
 	for i := range f.RigidBodies {
 		fmt.Fprintf(&buf, "%s\n", f.RigidBodies[i])
+	}
+	for _, d := range f.DistributingCouplings {
+		fmt.Fprintf(&buf, "%s\n", d)
 	}
 
 	for i := range f.Steps {
@@ -757,6 +761,36 @@ func (r RigidBody) String() string {
 		out += fmt.Sprintf(",ROT NODE=%d", r.RotNode)
 	}
 	out += "\n"
+	return out
+}
+
+// First line:
+//     *DISTRIBUTING COUPLING
+//     Enter the ELSET parameter and its value
+// Following line:
+//     Node number or node set
+//     Weight
+// Repeat this line if needed.
+type DistributingCoupling struct {
+	ElsetName     string
+	ElsetNode     int
+	NodeIndexes   []int // with weight 1.0
+	ReferenceNode int
+}
+
+func (d DistributingCoupling) String() string {
+	if d.ElsetName == "" {
+		return "\n"
+	}
+	var out string
+	out += fmt.Sprintf("*DISTRIBUTING COUPLING,ELSET=%s\n", d.ElsetName)
+	for _, n := range d.NodeIndexes {
+		out += fmt.Sprintf("%d,1.\n", n)
+	}
+	out += fmt.Sprintf("*ELSET,ELSET=%s\n", d.ElsetName)
+	out += fmt.Sprintf("%d\n", d.ElsetNode)
+	out += fmt.Sprintf("*ELEMENT,TYPE=DCOUP3D\n")
+	out += fmt.Sprintf("%d, %d\n", d.ElsetNode, d.ReferenceNode)
 	return out
 }
 
