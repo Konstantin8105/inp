@@ -775,6 +775,7 @@ type DistributingCoupling struct {
 	ElsetName     string
 	ElsetNode     int
 	NodeIndexes   []int // with weight 1.0
+	NodeNames []string
 	ReferenceNode int
 }
 
@@ -786,6 +787,9 @@ func (d DistributingCoupling) String() string {
 	out += fmt.Sprintf("*DISTRIBUTING COUPLING,ELSET=%s\n", d.ElsetName)
 	for _, n := range d.NodeIndexes {
 		out += fmt.Sprintf("%d,1.\n", n)
+	}
+	for _, n := range d.NodeNames {
+		out += fmt.Sprintf("%s,1.\n", n)
 	}
 	out += fmt.Sprintf("*ELSET,ELSET=%s\n", d.ElsetName)
 	out += fmt.Sprintf("%d\n", d.ElsetNode)
