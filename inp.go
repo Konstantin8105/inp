@@ -571,15 +571,18 @@ func (s Set) String(name string) string {
 	// list
 	var list []string
 	for _, ind := range s.Indexes {
-		list = append(list, fmt.Sprintf(" %5d, ", ind))
+		list = append(list, fmt.Sprintf(" %5d ", ind))
 	}
 	for _, ind := range s.Names {
-		list = append(list, fmt.Sprintf(" %s , ", ind))
+		list = append(list, fmt.Sprintf(" %s  ", ind))
 	}
 
 	// combine
 	for i := range list {
-		fmt.Fprintf(&buf, "%s", list[i])
+		fmt.Fprintf(&buf, "%s ", list[i])
+		if i != len(list)-1 {
+			fmt.Fprintf(&buf, " , ")
+		}
 		if (i+1)%9 == 0 && i != len(list)-1 {
 			fmt.Fprintf(&buf, "\n")
 		}
