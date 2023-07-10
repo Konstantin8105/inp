@@ -71,6 +71,7 @@ type Model struct {
 		Generate bool
 		Time     []float64
 	}
+	RigidBodies []RigidBody
 }
 
 type Step struct {
@@ -336,6 +337,10 @@ func (f Model) String() string {
 		fmt.Fprintf(&buf, "*BOUNDARY\n%s,%d,%d,%.8e\n",
 			boun.LoadLocation, boun.Start, boun.Finish, boun.Factor,
 		)
+	}
+
+	for i := range f.RigidBodies {
+		fmt.Fprintf(&buf, "%s\n", f.RigidBodies[i])
 	}
 
 	for i := range f.Steps {
@@ -727,6 +732,28 @@ func (s Spring) String() string {
 		out += "\n"
 	}
 	out += fmt.Sprintf("%.7e\n", s.SpringConstant)
+	return out
+}
+
+// First and only line:
+//     *RIGID BODY
+//     Enter any needed parameters and their values
+type RigidBody struct {
+	Nset    string
+	RefNode int
+	RotNode int
+}
+
+func (r RigidBody) String() string {
+	var out string
+	out += fmt.Sprintf("*RIGID BODY, NSET=%s", r.Nset)
+	if 0 < r.RefNode {
+		out += fmt.Sprintf(",REF NODE=%d", r.RefNode)
+	}
+	if 0 < r.RotNode {
+		out += fmt.Sprintf(",ROT NODE=%d", r.RotNode)
+	}
+	out += "\n"
 	return out
 }
 
