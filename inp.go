@@ -10,9 +10,11 @@ package inp
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"math"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -20,6 +22,18 @@ import (
 	"github.com/Konstantin8105/errors"
 	"github.com/Konstantin8105/pow"
 )
+
+var CcxApp = flag.String("ccx", "", "Example:\n`ccx` for Linux\n`ccx.exe` for Windows")
+
+func DefaultCcx() {
+	if *CcxApp != "" {
+		return
+	}
+	*CcxApp = "ccx"
+	if runtime.GOOS == "windows" {
+		*CcxApp = "ccx.exe"
+	}
+}
 
 // Model - summary inp format
 type Model struct {
@@ -2912,6 +2926,10 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 //  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
 //
 //        -2.370143E-09  1.371588E+04  1.044280E-11
+//
+//  total force (fx,fy,fz) for set FIX and time  0.1000000E+00
+//
+//        -8.198390E+02 -3.551087E+02  9.499363E+06
 //
 func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err error) {
 	defer func() {
