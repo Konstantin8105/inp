@@ -920,6 +920,8 @@ type BeamSection struct {
 	Elset    string
 	Material string
 
+	Offset1, Offset2 float64
+
 	Thks   [2]float64
 	Vector [3]float64
 }
@@ -930,6 +932,12 @@ func (b BeamSection) String() string {
 	fmt.Fprintf(&buf, ", SECTION=%s", b.Section)
 	fmt.Fprintf(&buf, ", ELSET=%s", b.Elset)
 	fmt.Fprintf(&buf, ", MATERIAL=%s", b.Material)
+	if 1e-5 < math.Abs(b.Offset1) {
+		fmt.Fprintf(&buf, ", OFFSET1=%.12e", b.Offset1)
+	}
+	if 1e-5 < math.Abs(b.Offset2) {
+		fmt.Fprintf(&buf, ", OFFSET2=%.12e", b.Offset2)
+	}
 	fmt.Fprintf(&buf, "\n")
 	for iv, v := range b.Thks {
 		fmt.Fprintf(&buf, "%.7e", v)
