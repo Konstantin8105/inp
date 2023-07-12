@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -33,6 +34,14 @@ func DefaultCcx() {
 	if runtime.GOOS == "windows" {
 		*CcxApp = "ccx.exe"
 	}
+}
+
+func CcxCpu(cpu int) {
+	amount := runtime.NumCPU()
+	if cpu <= 0 || amount < cpu {
+		cpu = amount
+	}
+	os.Setenv("OMP_NUM_THREADS", fmt.Sprintf("%d", cpu))
 }
 
 // Model - summary inp format
@@ -775,7 +784,7 @@ type DistributingCoupling struct {
 	ElsetName     string
 	ElsetNode     int
 	NodeIndexes   []int // with weight 1.0
-	NodeNames []string
+	NodeNames     []string
 	ReferenceNode int
 }
 
