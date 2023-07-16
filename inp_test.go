@@ -110,6 +110,7 @@ func TestDat(t *testing.T) {
 	files = append(files,
 		data+"/plastic.dat",
 		data+"/tmpfile.dat",
+		data+"/pe.dat",
 	)
 
 	for _, f := range files {

@@ -2847,6 +2847,15 @@ type Dat struct {
 	Stresses        []Stress
 	Forces          []Record
 	TotalForces     []Record
+	EqPlasticStrain []Pe
+}
+
+type Pe struct {
+	Name     string
+	Time     float64
+	Elem     int
+	IntegPnt int
+	Value    float64
 }
 
 type Record struct {
@@ -2905,6 +2914,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		dat.parseRecord("displacements (vx,vy,vz)", &dat.Displacements, &lines),
 		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
 		dat.parseRecord("total force (fx,fy,fz)", &dat.TotalForces, &lines),
+		dat.parsePe(&lines),
 		dat.parseStresses(&lines),
 	} {
 		if err != nil {
@@ -2992,6 +3002,79 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 				return
 			}
 			d.BucklingFactors = append(d.BucklingFactors, factor)
+			(*lines)[i] = ""
+		}
+	}
+	return
+}
+
+//  equivalent plastic strain (elem, integ.pnt.,pe)for set ELSUMMARY and time  0.1000000E+00
+//
+//          1   1  0.000000E+00
+//          1   2  0.000000E+00
+//          1   3  0.000000E+00
+//          1   4  0.000000E+00
+//          1   5  0.000000E+00
+//          1   6  0.000000E+00
+//          1   7  0.000000E+00
+//          1   8  0.000000E+00
+//          1   9  0.000000E+00
+//          2   1  0.000000E+00
+func (d *Dat) parsePe(lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parsePe: %v", err)
+		}
+	}()
+	prefix := "equivalent plastic strain (elem, integ.pnt.,pe)for set"
+	for i := 0; i < len(*lines); i++ {
+		if !strings.Contains((*lines)[i], prefix) {
+			continue
+		}
+		(*lines)[i] = strings.ReplaceAll((*lines)[i], prefix, "")
+		// parse
+		var name string
+		var time float64
+		{
+			fs := strings.Fields((*lines)[i])
+			if len(fs) != 4 {
+				err = fmt.Errorf("not valid: `%s`", (*lines)[i])
+				return
+			}
+			name = fs[0]
+			time, err = parseFloat(fs[3])
+			if err != nil {
+				return
+			}
+			(*lines)[i] = ""
+			(*lines)[i+1] = ""
+			i += 2
+		}
+		for ; i < len(*lines); i++ {
+			if (*lines)[i] == "" {
+				break
+			}
+			fields := strings.Fields((*lines)[i])
+			var elem int
+			elem, err = parseInt(fields[0])
+			if err != nil {
+				return
+			}
+			var interpnt int
+			interpnt, err = parseInt(fields[1])
+			if err != nil {
+				return
+			}
+			var value float64
+			value, err = parseFloat(fields[2])
+			if err != nil {
+				return
+			}
+
+			d.EqPlasticStrain = append(d.EqPlasticStrain, Pe{
+				Name: name, Time: time,
+				Elem: elem, IntegPnt: interpnt, Value: value,
+			})
 			(*lines)[i] = ""
 		}
 	}
