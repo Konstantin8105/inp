@@ -175,8 +175,8 @@ func (s Step) String() string {
 			if pr.SetName != "" {
 				fmt.Fprintf(&buf, ", %s=%s", slice.prefixName, pr.SetName)
 			}
-			if pr.Frequency != 0 {
-				fmt.Fprintf(&buf, ", FREQUENCY=%d", pr.Frequency)
+			if pr.Frequency != "" {
+				fmt.Fprintf(&buf, ", FREQUENCY=%s", pr.Frequency)
 			}
 			if pr.Output != "" {
 				fmt.Fprintf(&buf, ", OUTPUT=%s", pr.Output)
@@ -429,19 +429,24 @@ type Node struct {
 // parseNode
 //
 // Examples:
-//		*NODE
-//		1, 0, 0, 0
 //
-//		*NODE, NSET=Nall
-//		1, 0, 0, 0
+//	*NODE
+//	1, 0, 0, 0
+//
+//	*NODE, NSET=Nall
+//	1, 0, 0, 0
+//
 // First line:
-//   *NODE
-//   Enter the optional parameter, if desired.
+//
+//	*NODE
+//	Enter the optional parameter, if desired.
+//
 // Following line:
-//   node number.
-//   Value of first coordinate.
-//   Value of second coordinate.
-//   Value of third coordinate.
+//
+//	node number.
+//	Value of first coordinate.
+//	Value of second coordinate.
+//	Value of third coordinate.
 func (f *Model) parseNode(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*NODE") {
 		return false, nil
@@ -502,11 +507,14 @@ type Element struct {
 // parseElement - parser for ELEMENT
 //
 // First line:
-// 	*ELEMENT
-// 	Enter any needed parameters and their values.
+//
+//	*ELEMENT
+//	Enter any needed parameters and their values.
+//
 // Following line:
-// 	Element number.
-// 	Node numbers forming the element. The order of nodes around the element is
+//
+//	Element number.
+//	Node numbers forming the element. The order of nodes around the element is
 //	given in section 2.1. Use continuation lines for elements having more
 //	than 15 nodes (maximum 16 entries per line).
 func (f *Model) parseElement(block []string) (ok bool, err error) {
@@ -752,8 +760,9 @@ func (s Spring) String() string {
 }
 
 // First and only line:
-//     *RIGID BODY
-//     Enter any needed parameters and their values
+//
+//	*RIGID BODY
+//	Enter any needed parameters and their values
 type RigidBody struct {
 	Nset    string
 	RefNode int
@@ -774,11 +783,15 @@ func (r RigidBody) String() string {
 }
 
 // First line:
-//     *DISTRIBUTING COUPLING
-//     Enter the ELSET parameter and its value
+//
+//	*DISTRIBUTING COUPLING
+//	Enter the ELSET parameter and its value
+//
 // Following line:
-//     Node number or node set
-//     Weight
+//
+//	Node number or node set
+//	Weight
+//
 // Repeat this line if needed.
 type DistributingCoupling struct {
 	ElsetName     string
@@ -817,12 +830,15 @@ func (d DistributingCoupling) String() string {
 // – 11: temperature
 //
 // First line:
-// 		*BOUNDARY
-// 		Enter any needed parameters and their value.
+//
+//	*BOUNDARY
+//	Enter any needed parameters and their value.
+//
 // Following line:
-// 		Node number or node set label
-// 		First degree of freedom constrained
-// 		Last degree of freedom constrained. This field may be left blank if only one degree of freedom is constrained.
+//
+//	Node number or node set label
+//	First degree of freedom constrained
+//	Last degree of freedom constrained. This field may be left blank if only one degree of freedom is constrained.
 type Boundary struct {
 	LoadLocation string
 	Start        int
@@ -1216,12 +1232,15 @@ func (f *Model) parseStep(block []string) (ok bool, err error) {
 }
 
 // First line:
-// 		*BUCKLE
+//
+//	*BUCKLE
+//
 // Second line:
-// 		Number of buckling factors desired (usually 1).
-// 		Accuracy desired (default: 0.01).
-// 		# Lanczos vectors calculated in each iteration (default: 4 * #eigenvalues).
-// 		Maximum # of iterations (default: 1000).
+//
+//	Number of buckling factors desired (usually 1).
+//	Accuracy desired (default: 0.01).
+//	# Lanczos vectors calculated in each iteration (default: 4 * #eigenvalues).
+//	Maximum # of iterations (default: 1000).
 func (s *Step) parseBuckle(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*BUCKLE") {
 		return false, nil
@@ -1254,7 +1273,7 @@ type File struct {
 
 type Print struct {
 	SetName        string
-	Frequency      int
+	Frequency      string
 	Output         string
 	TimePoints     string
 	TotalOnly      bool
@@ -1282,7 +1301,6 @@ type Print struct {
 //
 // U [DISP(real), DISPI(imaginary)]: Displacements.
 //
-//
 // [*NODE PRINT,NSET=N1 RF]
 // [*NODE PRINT,NSET=NALL U,RF]
 // [*NODE PRINT,NSET=NALL U]
@@ -1298,8 +1316,10 @@ type Print struct {
 // TS; both are equivalent)
 //
 // Example:
-//		*NODE FILE,TIME POINTS=T1
-//		RF,NT
+//
+//	*NODE FILE,TIME POINTS=T1
+//	RF,NT
+//
 // requests the storage of reaction forces and temperatures in the .frd file for
 // all time points defined by the T1 time points sequence
 func (s *Step) parsePrint(block []string, prefix string, pr *[]Print) (ok bool, err error) {
@@ -1324,12 +1344,12 @@ func (s *Step) parsePrint(block []string, prefix string, pr *[]Print) (ok bool, 
 			np.TimePoints = s
 		case strings.HasPrefix(s, "FREQUENCY="):
 			s = s[10:]
-			var i64 int64
-			i64, err = strconv.ParseInt(s, 10, 64)
-			if err != nil {
-				return
-			}
-			np.Frequency = int(i64)
+			// var i64 int64
+			// i64, err = strconv.ParseInt(s, 10, 64)
+			// if err != nil {
+			// 	return
+			// }
+			np.Frequency = s // int(i64)
 		case strings.HasPrefix(s, "OUTPUT"):
 			index := strings.Index(s, "=")
 			s = strings.TrimSpace(s[index+1:])
@@ -1355,15 +1375,16 @@ func (s *Step) parsePrint(block []string, prefix string, pr *[]Print) (ok bool, 
 //
 // Second line (only relevant for nonlinear analyses; for linear analyses, the step
 // length is always 1)
-// • Initial time increment. This value will be modified due to automatic in-
-//   crementation, unless the parameter DIRECT was specified (default 1.).
-// • Time period of the step (default 1.).
-// • Minimum time increment allowed. Only active if DIRECT is not specified.
+//   - Initial time increment. This value will be modified due to automatic in-
+//     crementation, unless the parameter DIRECT was specified (default 1.).
+//   - Time period of the step (default 1.).
+//   - Minimum time increment allowed. Only active if DIRECT is not specified.
+//
 // Default is the initial time increment or 1.e-5 times the time period of the
 // step, whichever is smaller.
-// • Maximum time increment allowed. Only active if DIRECT is not specified.
-//   Default is 1.e+30
-// • Initial time increment for CFD applications (default 1.e-2)
+//   - Maximum time increment allowed. Only active if DIRECT is not specified.
+//     Default is 1.e+30
+//   - Initial time increment for CFD applications (default 1.e-2)
 func (s *Step) parseStatic(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*STATIC") {
 		return false, nil
@@ -2960,15 +2981,15 @@ func (d *Dat) cleanDat(lines *[]string) error {
 // ParseBucklingFactor in file for example `shell2.dat` and return
 // slice of buckling factors.
 //
-//      B U C K L I N G   F A C T O R   O U T P U T
+//	    B U C K L I N G   F A C T O R   O U T P U T
 //
-//  MODE NO       BUCKLING
-//                 FACTOR
+//	MODE NO       BUCKLING
+//	               FACTOR
 //
-//       1   0.4185108E+03
-//       2   0.4196190E+03
-//       3   0.4200342E+03
-//       4   0.4212441E+03
+//	     1   0.4185108E+03
+//	     2   0.4196190E+03
+//	     3   0.4200342E+03
+//	     4   0.4212441E+03
 func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
@@ -3008,18 +3029,18 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 	return
 }
 
-//  equivalent plastic strain (elem, integ.pnt.,pe)for set ELSUMMARY and time  0.1000000E+00
+// equivalent plastic strain (elem, integ.pnt.,pe)for set ELSUMMARY and time  0.1000000E+00
 //
-//          1   1  0.000000E+00
-//          1   2  0.000000E+00
-//          1   3  0.000000E+00
-//          1   4  0.000000E+00
-//          1   5  0.000000E+00
-//          1   6  0.000000E+00
-//          1   7  0.000000E+00
-//          1   8  0.000000E+00
-//          1   9  0.000000E+00
-//          2   1  0.000000E+00
+//	1   1  0.000000E+00
+//	1   2  0.000000E+00
+//	1   3  0.000000E+00
+//	1   4  0.000000E+00
+//	1   5  0.000000E+00
+//	1   6  0.000000E+00
+//	1   7  0.000000E+00
+//	1   8  0.000000E+00
+//	1   9  0.000000E+00
+//	2   1  0.000000E+00
 func (d *Dat) parsePe(lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
@@ -3081,24 +3102,23 @@ func (d *Dat) parsePe(lines *[]string) (err error) {
 	return
 }
 
-//  displacements (vx,vy,vz) for set NALL and time  0.1000000E+01
+// displacements (vx,vy,vz) for set NALL and time  0.1000000E+01
 //
-//          1  1.352000E-16 -2.498494E-17  4.970090E-16
-//          2  5.598820E-16 -1.501735E-16  1.454478E-15
+//	1  1.352000E-16 -2.498494E-17  4.970090E-16
+//	2  5.598820E-16 -1.501735E-16  1.454478E-15
 //
-//  forces (fx,fy,fz) for set NALL and time  0.1000000E+01
+// forces (fx,fy,fz) for set NALL and time  0.1000000E+01
 //
-//          1 -5.000000E+03 -2.571121E-11  3.895106E-12
-//          2 -2.423295E-11  3.754330E-12  8.677503E-12
+//	1 -5.000000E+03 -2.571121E-11  3.895106E-12
+//	2 -2.423295E-11  3.754330E-12  8.677503E-12
 //
-//  total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
+// total force (fx,fy,fz) for set SUPALL and time  0.2500000E+00
 //
-//        -2.370143E-09  1.371588E+04  1.044280E-11
+//	-2.370143E-09  1.371588E+04  1.044280E-11
 //
-//  total force (fx,fy,fz) for set FIX and time  0.1000000E+00
+// total force (fx,fy,fz) for set FIX and time  0.1000000E+00
 //
-//        -8.198390E+02 -3.551087E+02  9.499363E+06
-//
+//	-8.198390E+02 -3.551087E+02  9.499363E+06
 func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
@@ -3157,14 +3177,14 @@ func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err e
 	return
 }
 
-//  stresses (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz) for set EALL and time  0.1000000E+01
+// stresses (elem, integ.pnt.,sxx,syy,szz,sxy,sxz,syz) for set EALL and time  0.1000000E+01
 //
-//          9   1  1.924780E+01  2.364342E+00  1.339050E+00 -1.499755E+00 -1.734234E+01 -5.334068E+00
-//          9   2  1.822731E+01 -1.114173E-01 -1.199380E+01  1.650582E+00 -1.518002E+01  9.306785E-01
-//          9   3  1.617674E+01  1.623984E+00 -1.026618E+01  4.567034E+00 -1.570035E+01  7.537470E+00
-//          9   4 -1.031847E+01 -1.821434E+00 -6.997414E+00  1.421124E+00  1.661227E+00 -4.074531E+00
+//	9   1  1.924780E+01  2.364342E+00  1.339050E+00 -1.499755E+00 -1.734234E+01 -5.334068E+00
+//	9   2  1.822731E+01 -1.114173E-01 -1.199380E+01  1.650582E+00 -1.518002E+01  9.306785E-01
+//	9   3  1.617674E+01  1.623984E+00 -1.026618E+01  4.567034E+00 -1.570035E+01  7.537470E+00
+//	9   4 -1.031847E+01 -1.821434E+00 -6.997414E+00  1.421124E+00  1.661227E+00 -4.074531E+00
 //
-//          1   1 -4.365744E+02 -1.138162E+02 -1.460370E+02 -9.350144E+00 -7.660134E-01  2.364488E+01 _shell_0000000001`
+//	1   1 -4.365744E+02 -1.138162E+02 -1.460370E+02 -9.350144E+00 -7.660134E-01  2.364488E+01 _shell_0000000001`
 func (d *Dat) parseStresses(lines *[]string) (err error) {
 	defer func() {
 		if err != nil {
