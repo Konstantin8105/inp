@@ -111,6 +111,7 @@ func TestDat(t *testing.T) {
 		data+"/plastic.dat",
 		data+"/tmpfile.dat",
 		data+"/pe.dat",
+		data+"/eigen.dat",
 	)
 
 	for _, f := range files {

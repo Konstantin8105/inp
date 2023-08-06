@@ -2863,12 +2863,13 @@ func parseFloat(str string) (v float64, err error) {
 }
 
 type Dat struct {
-	BucklingFactors []float64
-	Displacements   []Record
-	Stresses        []Stress
-	Forces          []Record
-	TotalForces     []Record
-	EqPlasticStrain []Pe
+	BucklingFactors   []float64
+	Displacements     []Record
+	EigenDispacements [][]Record
+	Stresses          []Stress
+	Forces            []Record
+	TotalForces       []Record
+	EqPlasticStrain   []Pe
 }
 
 type Pe struct {
@@ -2932,6 +2933,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 	for pos, err := range []error{
 		dat.cleanDat(&lines),
 		dat.parseBucklingFactor(&lines),
+		dat.parseEigen(&lines),
 		dat.parseRecord("displacements (vx,vy,vz)", &dat.Displacements, &lines),
 		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
 		dat.parseRecord("total force (fx,fy,fz)", &dat.TotalForces, &lines),
@@ -2943,12 +2945,16 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		}
 	}
 
+	counter := 0
 	for i := range lines {
 		if lines[i] == "" {
 			continue
 		}
-		et.Add(fmt.Errorf("not parse: %s", lines[i]))
-		break
+		et.Add(fmt.Errorf("not parse pos %d: %s", i, lines[i]))
+		counter++
+		if 5 < counter {
+			break
+		}
 	}
 
 	return
@@ -2962,11 +2968,6 @@ func (d *Dat) cleanDat(lines *[]string) error {
 	// exp     93634 -0.1501E-07
 	//
 	for i := 0; i < len(*lines); i++ {
-		if strings.Contains((*lines)[i], "E I G E N V A L U E    N U M B E R") {
-			// E I G E N V A L U E    N U M B E R     1
-			(*lines)[i+0] = ""
-			continue
-		}
 		if !strings.Contains((*lines)[i], "KNOT1") {
 			continue
 		}
@@ -3026,6 +3027,67 @@ func (d *Dat) parseBucklingFactor(lines *[]string) (err error) {
 			(*lines)[i] = ""
 		}
 	}
+	return
+}
+
+//	E I G E N V A L U E    N U M B E R     1
+//
+// displacements (vx,vy,vz) for set NSUMMARY and time  0.0000000E+00
+//
+//	1  0.000000E+00  0.000000E+00  0.000000E+00
+//	2  0.000000E+00  0.000000E+00  0.000000E+00
+func (d *Dat) parseEigen(lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseBucklingFactor: %v", err)
+		}
+	}()
+	header := "E I G E N V A L U E    N U M B E R"
+	for i := 0; i < len(*lines); i++ {
+		if !strings.HasPrefix((*lines)[i], header) {
+			continue
+		}
+		mode := (*lines)[i][len(header):]
+		mode = strings.TrimSpace(mode)
+
+		var modeNumber int64
+		modeNumber, err = strconv.ParseInt(mode, 10, 64)
+		if err != nil {
+			return
+		}
+		_ = modeNumber
+
+		(*lines)[i] = ""
+
+		for ; i < len(*lines); i++ {
+			if (*lines)[i] != "" {
+				break
+			}
+		}
+
+		var end int = i + 2
+		for ; end < len(*lines); end++ {
+			if (*lines)[end] == "" {
+				break
+			}
+		}
+		sublines := (*lines)[i : end]
+
+		var recs []Record
+		err = d.parseRecord("displacements (vx,vy,vz)", &recs, &sublines)
+		if err != nil {
+			return
+		}
+		for i := range recs {
+			recs[i].Time = float64(modeNumber)
+		}
+		d.EigenDispacements = append(d.EigenDispacements, recs)
+		i = end
+		for p := i - 1; p <= end; p++ {
+			(*lines)[p] = ""
+		}
+	}
+
 	return
 }
 
@@ -3125,6 +3187,7 @@ func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err e
 			err = fmt.Errorf("parseRecord `%s`: %v", header, err)
 		}
 	}()
+
 	for i := 0; i < len(*lines); i++ {
 		if !strings.Contains((*lines)[i], header) {
 			continue
