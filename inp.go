@@ -1061,6 +1061,9 @@ func (ss ShellSection) String() string {
 		fmt.Fprintf(&buf, ", COMPOSITE")
 		fmt.Fprintf(&buf, "\n")
 		for _, row := range ss.Property {
+			if math.Abs(row.Thickness) < 1e-8 {
+				continue
+			}
 			fmt.Fprintf(&buf, "%.8e,, %s\n", row.Thickness, row.Material)
 		}
 	} else {
