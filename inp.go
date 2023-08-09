@@ -2866,13 +2866,13 @@ func parseFloat(str string) (v float64, err error) {
 }
 
 type Dat struct {
-	BucklingFactors   []float64
-	Displacements     []Record
-	EigenDispacements [][]Record
-	Stresses          []Stress
-	Forces            []Record
-	TotalForces       []Record
-	EqPlasticStrain   []Pe
+	BucklingFactors    []float64
+	Displacements      []Record
+	EigenDisplacements [][]Record
+	Stresses           []Stress
+	Forces             []Record
+	TotalForces        []Record
+	EqPlasticStrain    []Pe
 }
 
 type Pe struct {
@@ -3074,7 +3074,7 @@ func (d *Dat) parseEigen(lines *[]string) (err error) {
 				break
 			}
 		}
-		sublines := (*lines)[i : end]
+		sublines := (*lines)[i:end]
 
 		var recs []Record
 		err = d.parseRecord("displacements (vx,vy,vz)", &recs, &sublines)
@@ -3084,7 +3084,7 @@ func (d *Dat) parseEigen(lines *[]string) (err error) {
 		for i := range recs {
 			recs[i].Time = float64(modeNumber)
 		}
-		d.EigenDispacements = append(d.EigenDispacements, recs)
+		d.EigenDisplacements = append(d.EigenDisplacements, recs)
 		i = end
 		for p := i - 1; p <= end; p++ {
 			(*lines)[p] = ""
