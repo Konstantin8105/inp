@@ -98,6 +98,9 @@ func (s Surface) String() string {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "\n*SURFACE")
+	if s.Name != "" {
+		fmt.Fprintf(&buf, ", NAME=%s\n", s.Name)
+	}
 	if s.IsElementType {
 		fmt.Fprintf(&buf, ", TYPE=ELEMENT\n")
 		for _, l := range s.List {
