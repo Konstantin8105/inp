@@ -51,6 +51,7 @@ type Model struct {
 	Elements []Element
 	Nsets    []Set
 	Elsets   []Set
+	Surfaces []Surface
 	Material struct {
 		Name      string
 		Density   float64
@@ -82,6 +83,39 @@ type Model struct {
 	}
 	RigidBodies           []RigidBody
 	DistributingCouplings []DistributingCoupling
+}
+
+type Surface struct {
+	Name          string
+	IsElementType bool
+	List          [][2]string
+}
+
+func (s Surface) String() string {
+	if len(s.List) == 0 {
+		return ""
+	}
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "\n*SURFACE")
+	if s.IsElementType {
+		fmt.Fprintf(&buf, ", TYPE=ELEMENT\n")
+		for _, l := range s.List {
+			fmt.Fprintf(&buf, "%s, %s\n", l[0], l[1])
+		}
+	} else {
+		fmt.Fprintf(&buf, ", TYPE=NODE\n")
+		for i, l := range s.List {
+			fmt.Fprintf(&buf, "%s", l[0])
+			if i == len(s.List) {
+				fmt.Fprintf(&buf, "\n")
+			} else {
+				fmt.Fprintf(&buf, ",\n")
+			}
+		}
+	}
+	fmt.Fprintf(&buf, "\n")
+	return buf.String()
 }
 
 type Step struct {
@@ -288,6 +322,10 @@ func (f Model) String() string {
 	}
 	writeSet(&buf, "NSET", f.Nsets)
 	writeSet(&buf, "ELSET", f.Elsets)
+
+	for _, s := range f.Surfaces {
+		fmt.Fprintf(&buf, "%s\n", s)
+	}
 
 	if f.Material.Name != "" {
 		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", f.Material.Name)
