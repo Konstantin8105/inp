@@ -99,7 +99,7 @@ func (s Surface) String() string {
 
 	fmt.Fprintf(&buf, "\n*SURFACE")
 	if s.Name != "" {
-		fmt.Fprintf(&buf, ", NAME=%s\n", s.Name)
+		fmt.Fprintf(&buf, ", NAME=%s", s.Name)
 	}
 	if s.IsElementType {
 		fmt.Fprintf(&buf, ", TYPE=ELEMENT\n")
