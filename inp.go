@@ -2916,6 +2916,27 @@ type Dat struct {
 	EqPlasticStrain    []Pe
 }
 
+func (d Dat) MaxTime() (mt float64) {
+	list := [][]Record{
+		d.Displacements,
+		d.Forces,
+		d.TotalForces,
+	}
+	list = append(list, d.EigenDisplacements...)
+	for i := range list {
+		for j := range list[i] {
+			mt = math.Max(mt, list[i][j].Time)
+		}
+	}
+	for i := range d.Stresses{
+		mt = math.Max(mt, d.Stresses[i].Time)
+	}
+	for i := range d.EqPlasticStrain {
+		mt = math.Max(mt, d.EqPlasticStrain[i].Time)
+	}
+	return
+}
+
 type Pe struct {
 	Name     string
 	Time     float64
