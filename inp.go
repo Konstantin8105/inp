@@ -69,15 +69,18 @@ type Model struct {
 	DistributingCouplings []DistributingCoupling
 }
 
+type Property struct {
+	E           float64 // Young`s modudlus
+	V           float64 // Poisson`s ratio
+	Temperature float64 // Temperature
+}
+
 type Material struct {
-	Name      string
-	Density   float64
-	Expansion float64
-	Elastic   struct {
-		E float64
-		V float64
-	}
-	Plastic struct {
+	Name       string
+	Density    float64
+	Expansion  float64
+	Properties []Property
+	Plastic    struct {
 		Hardening string
 		Data      [10]struct {
 			StressVonMises float64
@@ -92,11 +95,15 @@ func (m Material) String() string {
 	if m.Name != "" {
 		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", m.Name)
 	}
-	if m.Elastic.E != 0.0 {
-		fmt.Fprintf(&buf, "*ELASTIC\n%.8e, %.8e\n",
-			m.Elastic.E,
-			m.Elastic.V,
-		)
+	if 0 < len(m.Properties) {
+		fmt.Fprintf(&buf, "*ELASTIC\n")
+		for _, pr := range m.Properties {
+			fmt.Fprintf(&buf, "%.8e, %.8e %.8e\n",
+				pr.E,
+				pr.V,
+				pr.Temperature,
+			)
+		}
 	}
 	if m.Plastic.Hardening != "" {
 		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", m.Plastic.Hardening)
@@ -782,17 +789,27 @@ func (f *Model) parseElastic(block []string) (ok bool, err error) {
 	if len(f.Materials) == 0 {
 		f.Materials = make([]Material, 1)
 	}
-	var v float64
-	v, err = parseFloat(fields[0])
-	if err != nil {
-		return
+	for pos := 1; pos < len(block); pos++ {
+		var pr Property
+		switch len(fields) {
+		case 3:
+			pr.Temperature, err = parseFloat(fields[2])
+			if err != nil {
+				return
+			}
+			fallthrough
+		case 2:
+			pr.E, err = parseFloat(fields[0])
+			if err != nil {
+				return
+			}
+			pr.V, err = parseFloat(fields[1])
+			if err != nil {
+				return
+			}
+		}
+		f.Materials[0].Properties = append(f.Materials[0].Properties, pr)
 	}
-	f.Materials[0].Elastic.E = v
-	v, err = parseFloat(fields[1])
-	if err != nil {
-		return
-	}
-	f.Materials[0].Elastic.V = v
 	return true, nil
 }
 
