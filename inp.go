@@ -46,29 +46,13 @@ func CcxCpu(cpu int) {
 
 // Model - summary inp format
 type Model struct {
-	Heading  string
-	Nodes    []Node
-	Elements []Element
-	Nsets    []Set
-	Elsets   []Set
-	Surfaces []Surface
-	Material struct {
-		Name      string
-		Density   float64
-		Expansion float64
-		Elastic   struct {
-			E float64
-			V float64
-		}
-		Plastic struct {
-			Hardening string
-			Data      [10]struct {
-				StressVonMises float64
-				PlasticStrain  float64
-				Temperature    float64
-			}
-		}
-	}
+	Heading           string
+	Nodes             []Node
+	Elements          []Element
+	Nsets             []Set
+	Elsets            []Set
+	Surfaces          []Surface
+	Materials         []Material
 	InitialConditions Condition
 	BeamSections      []BeamSection
 	SolidSections     []SolidSection
@@ -83,6 +67,49 @@ type Model struct {
 	}
 	RigidBodies           []RigidBody
 	DistributingCouplings []DistributingCoupling
+}
+
+type Material struct {
+	Name      string
+	Density   float64
+	Expansion float64
+	Elastic   struct {
+		E float64
+		V float64
+	}
+	Plastic struct {
+		Hardening string
+		Data      [10]struct {
+			StressVonMises float64
+			PlasticStrain  float64
+			Temperature    float64
+		}
+	}
+}
+
+func (m Material) String() string {
+	var buf bytes.Buffer
+	if m.Name != "" {
+		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", m.Name)
+	}
+	if m.Elastic.E != 0.0 {
+		fmt.Fprintf(&buf, "*ELASTIC\n%.8e, %.8e\n",
+			m.Elastic.E,
+			m.Elastic.V,
+		)
+	}
+	if m.Plastic.Hardening != "" {
+		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", m.Plastic.Hardening)
+		for _, d := range m.Plastic.Data {
+			if d.StressVonMises != 0.0 {
+				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
+					d.StressVonMises, d.PlasticStrain, d.Temperature)
+			}
+		}
+	}
+	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", m.Expansion)
+	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", m.Density)
+	return buf.String()
 }
 
 type Surface struct {
@@ -330,26 +357,9 @@ func (f Model) String() string {
 		fmt.Fprintf(&buf, "%s\n", s)
 	}
 
-	if f.Material.Name != "" {
-		fmt.Fprintf(&buf, "*MATERIAL, NAME=%s\n", f.Material.Name)
+	for i := range f.Materials {
+		fmt.Fprintf(&buf, "%s\n", f.Materials[i].String())
 	}
-	if f.Material.Elastic.E != 0.0 {
-		fmt.Fprintf(&buf, "*ELASTIC\n%.8e, %.8e\n",
-			f.Material.Elastic.E,
-			f.Material.Elastic.V,
-		)
-	}
-	if f.Material.Plastic.Hardening != "" {
-		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", f.Material.Plastic.Hardening)
-		for _, d := range f.Material.Plastic.Data {
-			if d.StressVonMises != 0.0 {
-				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
-					d.StressVonMises, d.PlasticStrain, d.Temperature)
-			}
-		}
-	}
-	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", f.Material.Expansion)
-	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", f.Material.Density)
 
 	fmt.Fprintf(&buf, "%s\n", f.InitialConditions.String())
 
@@ -712,10 +722,15 @@ func (f *Model) parseDensity(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
 	}
-	f.Material.Density, err = parseFloat(block[1])
+	var ro float64
+	ro, err = parseFloat(block[1])
 	if err != nil {
 		return
 	}
+	if len(f.Materials) == 0 {
+		f.Materials = make([]Material, 1)
+	}
+	f.Materials[0].Density = ro
 	return true, nil
 }
 
@@ -723,10 +738,15 @@ func (f *Model) parseExpansion(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
-	f.Material.Expansion, err = parseFloat(block[1])
+	var v float64
+	v, err = parseFloat(block[1])
 	if err != nil {
 		return
 	}
+	if len(f.Materials) == 0 {
+		f.Materials = make([]Material, 1)
+	}
+	f.Materials[0].Expansion = v
 	return true, nil
 }
 
@@ -741,7 +761,10 @@ func (f *Model) parseMaterial(block []string) (ok bool, err error) {
 		for _, field := range fields[1:] {
 			switch {
 			case strings.HasPrefix(field, "NAME="):
-				f.Material.Name = field[5:]
+				if len(f.Materials) == 0 {
+					f.Materials = make([]Material, 1)
+				}
+				f.Materials[0].Name = field[5:]
 			default:
 				panic(fmt.Errorf("`%s` : `%s`", line, field))
 			}
@@ -756,15 +779,20 @@ func (f *Model) parseElastic(block []string) (ok bool, err error) {
 	}
 	line := strings.Replace(block[1], ",", " ", -1)
 	fields := strings.Fields(line)
-	f.Material.Elastic.E, err = parseFloat(fields[0])
+	if len(f.Materials) == 0 {
+		f.Materials = make([]Material, 1)
+	}
+	var v float64
+	v, err = parseFloat(fields[0])
 	if err != nil {
 		return
 	}
-	f.Material.Elastic.V, err = parseFloat(fields[1])
+	f.Materials[0].Elastic.E = v
+	v, err = parseFloat(fields[1])
 	if err != nil {
 		return
 	}
-
+	f.Materials[0].Elastic.V = v
 	return true, nil
 }
 
@@ -1579,13 +1607,17 @@ func (f *Model) parsePlastic(block []string) (ok bool, err error) {
 		return false, nil
 	}
 
+	if len(f.Materials) == 0 {
+		f.Materials = make([]Material, 1)
+	}
+
 	for _, s := range strings.Split(block[0], ",")[1:] {
 		s = strings.TrimSpace(s)
 		prefixH := "HARDENING="
 		switch {
 		case strings.HasPrefix(s, prefixH):
 			s = s[len(prefixH):]
-			f.Material.Plastic.Hardening = s
+			f.Materials[0].Plastic.Hardening = s
 		default:
 			panic(s)
 		}
@@ -1595,18 +1627,18 @@ func (f *Model) parsePlastic(block []string) (ok bool, err error) {
 		line = strings.Replace(line, ",", " ", -1)
 		fields := strings.Fields(line)
 
-		f.Material.Plastic.Data[pos].StressVonMises, err = parseFloat(fields[0])
+		f.Materials[0].Plastic.Data[pos].StressVonMises, err = parseFloat(fields[0])
 		if err != nil {
 			return
 		}
-		f.Material.Plastic.Data[pos].PlasticStrain, err = parseFloat(fields[1])
+		f.Materials[0].Plastic.Data[pos].PlasticStrain, err = parseFloat(fields[1])
 		if err != nil {
 			return
 		}
 		if len(fields) == 2 {
 			continue
 		}
-		f.Material.Plastic.Data[pos].Temperature, err = parseFloat(fields[2])
+		f.Materials[0].Plastic.Data[pos].Temperature, err = parseFloat(fields[2])
 		if err != nil {
 			return
 		}
@@ -2928,7 +2960,7 @@ func (d Dat) MaxTime() (mt float64) {
 			mt = math.Max(mt, list[i][j].Time)
 		}
 	}
-	for i := range d.Stresses{
+	for i := range d.Stresses {
 		mt = math.Max(mt, d.Stresses[i].Time)
 	}
 	for i := range d.EqPlasticStrain {
