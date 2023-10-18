@@ -98,7 +98,7 @@ func (m Material) String() string {
 	if 0 < len(m.Properties) {
 		fmt.Fprintf(&buf, "*ELASTIC\n")
 		for _, pr := range m.Properties {
-			fmt.Fprintf(&buf, "%.8e, %.8e %.8e\n",
+			fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
 				pr.E,
 				pr.V,
 				pr.Temperature,
