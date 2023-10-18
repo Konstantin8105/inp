@@ -2957,6 +2957,7 @@ func parseFloat(str string) (v float64, err error) {
 
 type Dat struct {
 	BucklingFactors    []float64
+	Temperatures       []Single
 	Displacements      []Record
 	EigenDisplacements [][]Record
 	Stresses           []Stress
@@ -2984,6 +2985,13 @@ func (d Dat) MaxTime() (mt float64) {
 		mt = math.Max(mt, d.EqPlasticStrain[i].Time)
 	}
 	return
+}
+
+type Single struct {
+	Name  string
+	Time  float64
+	Node  int
+	Value float64
 }
 
 type Pe struct {
@@ -3051,6 +3059,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		dat.parseRecord("displacements (vx,vy,vz)", &dat.Displacements, &lines),
 		dat.parseRecord("forces (fx,fy,fz)", &dat.Forces, &lines),
 		dat.parseRecord("total force (fx,fy,fz)", &dat.TotalForces, &lines),
+		dat.parseSingle("temperatures", &dat.Temperatures, &lines),
 		dat.parsePe(&lines),
 		dat.parseStresses(&lines),
 	} {
@@ -3348,6 +3357,62 @@ func (d *Dat) parseRecord(header string, recs *[]Record, lines *[]string) (err e
 			}
 			(*recs) = append((*recs), Record{
 				Name: name, Node: node, Values: values, Time: time})
+			(*lines)[i] = ""
+		}
+	}
+	return
+}
+
+// temperatures ...
+// 1 20.08333
+// 2 32.32323
+func (d *Dat) parseSingle(header string, recs *[]Single, lines *[]string) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("parseRecord `%s`: %v", header, err)
+		}
+	}()
+
+	for i := 0; i < len(*lines); i++ {
+		if !strings.Contains((*lines)[i], header) {
+			continue
+		}
+		// parse
+		fs := strings.Fields((*lines)[i])
+
+		var name string
+
+		for p := range fs {
+			if fs[p] == "set" {
+				name = fs[p+1]
+			}
+		}
+
+		var time float64
+		time, err = parseFloat(fs[len(fs)-1])
+		if err != nil {
+			return
+		}
+		(*lines)[i] = ""
+		(*lines)[i+1] = ""
+		i += 2
+		for ; i < len(*lines); i++ {
+			if (*lines)[i] == "" {
+				break
+			}
+			fields := strings.Fields((*lines)[i])
+			var node int
+			node, err = parseInt(fields[0])
+			if err != nil {
+				return
+			}
+			var value float64
+			value, err = parseFloat(fields[1])
+			if err != nil {
+				return
+			}
+			(*recs) = append((*recs), Single{
+				Name: name, Node: node, Value: value, Time: time})
 			(*lines)[i] = ""
 		}
 	}
