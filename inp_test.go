@@ -28,7 +28,7 @@ func TestParse(t *testing.T) {
 		// "simplebeam",
 		// "shell3",
 	} {
-		fs, err := filepath.Glob(data + "/" + pattern + "*.inp")
+		fs, err := filepath.Glob(filepath.Join(data, pattern+"*.inp"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -36,10 +36,10 @@ func TestParse(t *testing.T) {
 	}
 
 	files = append(files, []string{
-		"./convertorInp/Example/shell.inp",
-		"./convertorInp/Example/shell2.inp",
-		"./convertorInp/Example/cone.inp",
-		data + "/beampiso.inp",
+		filepath.Join("convertorInp", "Example", "shell.inp"),
+		filepath.Join("convertorInp", "Example", "shell2.inp"),
+		filepath.Join("convertorInp", "Example", "cone.inp"),
+		filepath.Join(data, "/beampiso.inp"),
 	}...)
 
 	for _, f := range files {
@@ -100,7 +100,7 @@ func TestDat(t *testing.T) {
 		// "simplebeam",
 		"shell3",
 	} {
-		fs, err := filepath.Glob(data + "/" + pattern + "*.dat*")
+		fs, err := filepath.Glob(filepath.Join(data, pattern+"*.dat*"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,10 +108,11 @@ func TestDat(t *testing.T) {
 	}
 
 	files = append(files,
-		data+"/plastic.dat",
-		data+"/tmpfile.dat",
-		data+"/pe.dat",
-		data+"/eigen.dat",
+		filepath.Join(data, "plastic.dat"),
+		filepath.Join(data, "tmpfile.dat"),
+		filepath.Join(data, "pe.dat"),
+		filepath.Join(data, "eigen.dat"),
+		filepath.Join(data, "temperature.dat"),
 	)
 
 	for _, f := range files {
@@ -130,7 +131,7 @@ func TestDat(t *testing.T) {
 }
 
 func Benchmark(b *testing.B) {
-	content, err := os.ReadFile(data + "/plastic.dat")
+	content, err := os.ReadFile(filepath.Join(data, "plastic.dat"))
 	if err != nil {
 		panic(err)
 	}
