@@ -14,6 +14,8 @@ const data = "testdata"
 func TestParse(t *testing.T) {
 	var files []string
 
+	// pattern := ""
+	// _ = pattern
 	for _, pattern := range []string{
 		"beam8b",
 		"beamb",

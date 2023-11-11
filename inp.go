@@ -75,10 +75,15 @@ type Property struct {
 	Temperature float64 // Temperature
 }
 
+type Expansion struct {
+	Value       float64 // Expansion
+	Temperature float64 // Temperature
+}
+
 type Material struct {
 	Name       string
 	Density    float64
-	Expansion  float64
+	Expansions []Expansion
 	Properties []Property
 	Plastic    struct {
 		Hardening string
@@ -114,7 +119,14 @@ func (m Material) String() string {
 			}
 		}
 	}
-	fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", m.Expansion)
+	if len(m.Expansions) == 1 {
+		fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", m.Expansions[0].Value)
+	} else if 1 < len(m.Expansions) {
+		fmt.Fprintf(&buf, "*EXPANSION, TYPE=ISO, ZERO=%.8e\n", m.Expansions[0].Temperature)
+		for _, e := range m.Expansions {
+			fmt.Fprintf(&buf, "%.8e,%.8e\n", e.Value, e.Temperature)
+		}
+	}
 	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", m.Density)
 	return buf.String()
 }
@@ -745,15 +757,34 @@ func (f *Model) parseExpansion(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*EXPANSION") {
 		return false, nil
 	}
-	var v float64
-	v, err = parseFloat(block[1])
-	if err != nil {
-		return
-	}
+	block = block[1:] // TODO for ZERO, TYPE
 	if len(f.Materials) == 0 {
 		f.Materials = make([]Material, 1)
 	}
-	f.Materials[0].Expansion = v
+	for i := range block {
+		fs := strings.Fields(block[i])
+		var e Expansion
+		switch len(fs) {
+		case 2:
+			var t float64
+			t, err = parseFloat(block[1])
+			if err != nil {
+				return
+			}
+			e.Temperature = t
+		case 1:
+			var v float64
+			v, err = parseFloat(block[0])
+			if err != nil {
+				return
+			}
+			e.Value = v
+		default:
+			err = fmt.Errorf("Expansion: %v", fs)
+			return
+		}
+		f.Materials[0].Expansions = append(f.Materials[0].Expansions, e)
+	}
 	return true, nil
 }
 
