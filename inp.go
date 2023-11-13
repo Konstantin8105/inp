@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Konstantin8105/efmt"
 	"github.com/Konstantin8105/errors"
 	"github.com/Konstantin8105/pow"
 )
@@ -103,10 +104,10 @@ func (m Material) String() string {
 	if 0 < len(m.Properties) {
 		fmt.Fprintf(&buf, "*ELASTIC\n")
 		for _, pr := range m.Properties {
-			fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
-				pr.E,
-				pr.V,
-				pr.Temperature,
+			fmt.Fprintf(&buf, "%s, %s, %s\n",
+				efmt.Sprint(pr.E),
+				efmt.Sprint(pr.V),
+				efmt.Sprint(pr.Temperature),
 			)
 		}
 	}
@@ -114,20 +115,26 @@ func (m Material) String() string {
 		fmt.Fprintf(&buf, "*PLASTIC, HARDENING=%s\n", m.Plastic.Hardening)
 		for _, d := range m.Plastic.Data {
 			if d.StressVonMises != 0.0 {
-				fmt.Fprintf(&buf, "%.8e, %.8e, %.8e\n",
-					d.StressVonMises, d.PlasticStrain, d.Temperature)
+				fmt.Fprintf(&buf, "%s, %s, %s\n",
+					efmt.Sprint(d.StressVonMises),
+					efmt.Sprint(d.PlasticStrain),
+					efmt.Sprint(d.Temperature))
 			}
 		}
 	}
 	if len(m.Expansions) == 1 {
-		fmt.Fprintf(&buf, "*EXPANSION\n%.8e\n", m.Expansions[0].Value)
+		fmt.Fprintf(&buf, "*EXPANSION\n%s\n", efmt.Sprint(m.Expansions[0].Value))
 	} else if 1 < len(m.Expansions) {
-		fmt.Fprintf(&buf, "*EXPANSION, TYPE=ISO, ZERO=%.8e\n", m.Expansions[0].Temperature)
+		fmt.Fprintf(&buf, "*EXPANSION, TYPE=ISO, ZERO=%s\n",
+			efmt.Sprint(m.Expansions[0].Temperature))
 		for _, e := range m.Expansions {
-			fmt.Fprintf(&buf, "%.8e,%.8e\n", e.Value, e.Temperature)
+			fmt.Fprintf(&buf, "%s, %s\n",
+				efmt.Sprint(e.Value),
+				efmt.Sprint(e.Temperature),
+			)
 		}
 	}
-	fmt.Fprintf(&buf, "*DENSITY\n%.8e\n", m.Density)
+	fmt.Fprintf(&buf, "*DENSITY\n%s\n", efmt.Sprint(m.Density))
 	return buf.String()
 }
 
