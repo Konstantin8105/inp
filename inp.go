@@ -271,8 +271,11 @@ func (s Step) String() string {
 			if pr.Output != "" {
 				fmt.Fprintf(&buf, ", OUTPUT=%s", pr.Output)
 			}
-			if pr.TotalOnly {
-				fmt.Fprintf(&buf, ", TOTALS=ONLY")
+			if pr.Total != "" {
+				// for example:
+				// Calculix: ONLY
+				// Abaqus  : YES
+				fmt.Fprintf(&buf, ", TOTALS=%s", pr.Total)
 			}
 			if pr.TimePoints != "" {
 				fmt.Fprintf(&buf, ", TIME POINTS=%s", pr.TimePoints)
@@ -1408,7 +1411,7 @@ type Print struct {
 	Frequency      string
 	Output         string
 	TimePoints     string
-	TotalOnly      bool
+	Total          string
 	ContactElement bool
 	Global         bool
 	Options        []string
