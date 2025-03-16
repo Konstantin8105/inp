@@ -317,8 +317,7 @@ func (f Model) String() string {
 	var buf bytes.Buffer
 
 	if f.Heading != "" {
-		fmt.Fprintf(&buf, "*Heading\n")
-		fmt.Fprintf(&buf, " %s\n", f.Heading)
+		fmt.Fprintf(&buf, "*Heading\n%s\n", f.Heading)
 	}
 	if len(f.Nodes) > 0 {
 		addHeader := true
@@ -380,26 +379,20 @@ func (f Model) String() string {
 	writeSet(&buf, "ELSET", f.Elsets)
 
 	for _, s := range f.Surfaces {
-		fmt.Fprintf(&buf, "%s\n", s)
+		fmt.Fprintf(&buf, "%s", s)
 	}
-
-	for i := range f.Materials {
-		fmt.Fprintf(&buf, "%s\n", f.Materials[i].String())
-	}
-
-	fmt.Fprintf(&buf, "%s\n", f.InitialConditions.String())
-
+	fmt.Fprintf(&buf, "%s", f.InitialConditions.String())
 	for _, s := range f.SolidSections {
-		fmt.Fprintf(&buf, "%s\n", s.String())
+		fmt.Fprintf(&buf, "%s", s.String())
 	}
 	for _, s := range f.ShellSections {
-		fmt.Fprintf(&buf, "%s\n", s.String())
+		fmt.Fprintf(&buf, "%s", s.String())
 	}
 	for _, s := range f.BeamSections {
-		fmt.Fprintf(&buf, "%s\n", s.String())
+		fmt.Fprintf(&buf, "%s", s.String())
 	}
 	for _, s := range f.Springs {
-		fmt.Fprintf(&buf, "%s\n", s.String())
+		fmt.Fprintf(&buf, "%s", s.String())
 	}
 
 	if f.TimePoint.Name != "" {
@@ -427,14 +420,17 @@ func (f Model) String() string {
 	}
 
 	for i := range f.RigidBodies {
-		fmt.Fprintf(&buf, "%s\n", f.RigidBodies[i])
+		fmt.Fprintf(&buf, "%s", f.RigidBodies[i])
 	}
 	for _, d := range f.DistributingCouplings {
-		fmt.Fprintf(&buf, "%s\n", d)
+		fmt.Fprintf(&buf, "%s", d)
 	}
 
+	for i := range f.Materials {
+		fmt.Fprintf(&buf, "%s", f.Materials[i].String())
+	}
 	for i := range f.Steps {
-		fmt.Fprintf(&buf, "%s\n", f.Steps[i].String())
+		fmt.Fprintf(&buf, "%s", f.Steps[i].String())
 	}
 
 	return strings.ToUpper(buf.String())
@@ -929,19 +925,19 @@ func (d DistributingCoupling) String() string {
 	if d.ElsetName == "" {
 		return "\n"
 	}
-	var out string
-	out += fmt.Sprintf("*DISTRIBUTING COUPLING,ELSET=%s\n", d.ElsetName)
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "*DISTRIBUTING COUPLING,ELSET=%s\n", d.ElsetName)
 	for _, n := range d.NodeIndexes {
-		out += fmt.Sprintf("%d,1.\n", n)
+		fmt.Fprintf(&buf, "%d,1.\n", n)
 	}
 	for _, n := range d.NodeNames {
-		out += fmt.Sprintf("%s,1.\n", n)
+		fmt.Fprintf(&buf, "%s,1.\n", n)
 	}
-	out += fmt.Sprintf("*ELSET,ELSET=%s\n", d.ElsetName)
-	out += fmt.Sprintf("%d\n", d.ElsetNode)
-	out += fmt.Sprintf("*ELEMENT,TYPE=DCOUP3D\n")
-	out += fmt.Sprintf("%d, %d\n", d.ElsetNode, d.ReferenceNode)
-	return out
+	fmt.Fprintf(&buf, "*ELSET,ELSET=%s\n", d.ElsetName)
+	fmt.Fprintf(&buf, "%d\n", d.ElsetNode)
+	fmt.Fprintf(&buf, "*ELEMENT,TYPE=DCOUP3D\n")
+	fmt.Fprintf(&buf, "%d, %d\n", d.ElsetNode, d.ReferenceNode)
+	return buf.String()
 }
 
 // Boundary for structures:
@@ -1028,6 +1024,7 @@ func (ss SolidSection) String() string {
 	fmt.Fprintf(&buf, "*SOLID SECTION")
 	fmt.Fprintf(&buf, ", ELSET=%s", ss.Elset)
 	fmt.Fprintf(&buf, ", MATERIAL=%s", ss.Material)
+	fmt.Fprintf(&buf, "\n")
 	return buf.String()
 }
 
@@ -1057,6 +1054,7 @@ func (f *Model) parseSolidSection(block []string) (ok bool, err error) {
 	block = block[1:]
 	if 0 < len(block) {
 		err = fmt.Errorf("other lines: %s", strings.Join(block, "\n"))
+		return
 	}
 
 	f.SolidSections = append(f.SolidSections, ss)
@@ -1346,7 +1344,7 @@ func (f *Model) parseStep(block []string) (ok bool, err error) {
 			parseBoundary(&s.Boundaries),
 		})
 		if err != nil {
-			et.Add(err)
+			_ = et.Add(err)
 		}
 	}
 	if et.IsError() {
@@ -1728,7 +1726,7 @@ func blockParser(block []string, parsers []func(block []string) (ok bool, err er
 		var ok bool
 		ok, err = parsers[pos](block)
 		if err != nil {
-			et.Add(fmt.Errorf("№ %d: %v", pos, err))
+			_ = et.Add(fmt.Errorf("№ %d: %v", pos, err))
 			continue
 		}
 		found = found || ok
@@ -1742,7 +1740,7 @@ func blockParser(block []string, parsers []func(block []string) (ok bool, err er
 			block = block[:3]
 		}
 		err = fmt.Errorf("Not found block : %v", strings.Join(block, "\n"))
-		et.Add(err)
+		_ = et.Add(err)
 	}
 	if et.IsError() {
 		err = et
@@ -1833,7 +1831,7 @@ func Parse(content []byte) (f *Model, err error) {
 			// ignore("*PHYSICAL CONSTANTS"),
 		})
 		if err != nil {
-			et.Add(err)
+			_ = et.Add(err)
 		}
 	}
 	if et.IsError() {
@@ -3102,7 +3100,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		dat.parseStresses(&lines),
 	} {
 		if err != nil {
-			et.Add(fmt.Errorf("Pos: %d. %v", pos, err))
+			_ = et.Add(fmt.Errorf("Pos: %d. %v", pos, err))
 		}
 	}
 
@@ -3111,7 +3109,7 @@ func ParseDat(content []byte) (dat *Dat, err error) {
 		if lines[i] == "" {
 			continue
 		}
-		et.Add(fmt.Errorf("not parse pos %d: %s", i, lines[i]))
+		_ = et.Add(fmt.Errorf("not parse pos %d: %s", i, lines[i]))
 		counter++
 		if 5 < counter {
 			break

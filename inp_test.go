@@ -1,7 +1,6 @@
 package inp_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +45,7 @@ func TestParse(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			content, err := ioutil.ReadFile(f)
+			content, err := os.ReadFile(f)
 			if err != nil {
 				t.Fatal(err)
 			}
