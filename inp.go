@@ -134,7 +134,7 @@ func (m Material) String() string {
 			)
 		}
 	}
-	fmt.Fprintf(&buf, "*DENSITY\n%s\n", efmt.Sprint(m.Density))
+	fmt.Fprintf(&buf, "*DENSITY\n%s,\n", efmt.Sprint(m.Density))
 	return buf.String()
 }
 
@@ -204,7 +204,7 @@ type Step struct {
 func (s Step) String() string {
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "\n*STEP")
+	fmt.Fprintf(&buf, "*STEP")
 	if s.Nlgeom {
 		fmt.Fprintf(&buf, ", NLGEOM")
 	} else {
@@ -287,7 +287,7 @@ func (s Step) String() string {
 		}
 	}
 
-	fmt.Fprintf(&buf, "\n*END STEP\n")
+	fmt.Fprintf(&buf, "*END STEP\n")
 
 	return buf.String()
 }
@@ -743,6 +743,13 @@ func (f *Model) parseSet(s *[]Set, prefix string, block []string) (ok bool, err 
 func (f *Model) parseDensity(block []string) (ok bool, err error) {
 	if !isHeader(block[0], "*DENSITY") {
 		return false, nil
+	}
+	// ACCEPTABLE VALUES
+	// 7850
+	// 7850,     with comma
+	index := strings.Index(block[1], ",")
+	if 0 <= index {
+		block[1] = block[1][:index]
 	}
 	var ro float64
 	ro, err = parseFloat(block[1])
